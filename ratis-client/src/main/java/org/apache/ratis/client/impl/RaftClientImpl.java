@@ -17,20 +17,6 @@
  */
 package org.apache.ratis.client.impl;
 
-import org.apache.ratis.client.RaftClient;
-import org.apache.ratis.client.RaftClientConfigKeys;
-import org.apache.ratis.client.RaftClientRpc;
-import org.apache.ratis.conf.RaftProperties;
-import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase;
-import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
-import org.apache.ratis.proto.RaftProtos.SlidingWindowEntry;
-import org.apache.ratis.protocol.*;
-import org.apache.ratis.retry.RetryPolicy;
-import org.apache.ratis.util.CollectionUtils;
-import org.apache.ratis.util.JavaUtils;
-import org.apache.ratis.util.Preconditions;
-import org.apache.ratis.util.TimeoutScheduler;
-
 import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.util.Arrays;
@@ -45,6 +31,45 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
+
+import org.apache.ratis.client.RaftClient;
+import org.apache.ratis.client.RaftClientConfigKeys;
+import org.apache.ratis.client.RaftClientRpc;
+import org.apache.ratis.conf.RaftProperties;
+import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase;
+import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
+import org.apache.ratis.proto.RaftProtos.SlidingWindowEntry;
+import org.apache.ratis.protocol.AlreadyClosedException;
+import org.apache.ratis.protocol.ClientId;
+import org.apache.ratis.protocol.GroupInfoReply;
+import org.apache.ratis.protocol.GroupInfoRequest;
+import org.apache.ratis.protocol.GroupListReply;
+import org.apache.ratis.protocol.GroupListRequest;
+import org.apache.ratis.protocol.GroupManagementRequest;
+import org.apache.ratis.protocol.GroupMismatchException;
+import org.apache.ratis.protocol.LeaderNotReadyException;
+import org.apache.ratis.protocol.Message;
+import org.apache.ratis.protocol.NotLeaderException;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.RaftException;
+import org.apache.ratis.protocol.RaftGroup;
+import org.apache.ratis.protocol.RaftGroupId;
+import org.apache.ratis.protocol.RaftPeer;
+import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.RaftRetryFailureException;
+import org.apache.ratis.protocol.SetConfigurationRequest;
+import org.apache.ratis.protocol.StateMachineException;
+import org.apache.ratis.protocol.TimeoutIOException;
+import org.apache.ratis.retry.RetryPolicy;
+import org.apache.ratis.tracing.TracingUtil;
+import org.apache.ratis.util.CollectionUtils;
+import org.apache.ratis.util.JavaUtils;
+import org.apache.ratis.util.Preconditions;
+import org.apache.ratis.util.TimeoutScheduler;
+
+import io.opentracing.Scope;
+import io.opentracing.Span;
 
 /** A client who sends requests to a raft service. */
 final class RaftClientImpl implements RaftClient {
@@ -147,9 +172,9 @@ final class RaftClientImpl implements RaftClient {
 
   RaftClientRequest newRaftClientRequest(
       RaftPeerId server, long callId, Message message, RaftClientRequest.Type type,
-      SlidingWindowEntry slidingWindowEntry) {
+      SlidingWindowEntry slidingWindowEntry, Span span) {
     return new RaftClientRequest(clientId, server != null? server: leaderId, groupId,
-        callId, message, type, slidingWindowEntry);
+        callId, message, type, slidingWindowEntry, span);
   }
 
   @Override
@@ -180,7 +205,8 @@ final class RaftClientImpl implements RaftClient {
     }
 
     final long callId = nextCallId();
-    return sendRequestWithRetry(() -> newRaftClientRequest(server, callId, message, type, null));
+    final Span span = TracingUtil.activeSpan();
+    return sendRequestWithRetry(() -> newRaftClientRequest(server, callId, message, type, null, span));
   }
 
   // TODO: change peersInNewConf to List<RaftPeer>
@@ -243,7 +269,7 @@ final class RaftClientImpl implements RaftClient {
     for(int attemptCount = 1;; attemptCount++) {
       final RaftClientRequest request = supplier.get();
       IOException ioe = null;
-      try {
+      try (Scope ignored = TracingUtil.activate(request.getSpan())) {
         final RaftClientReply reply = sendRequest(request);
         if (reply != null) {
           return reply;

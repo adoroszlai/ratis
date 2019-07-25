@@ -22,8 +22,6 @@ import java.io.InterruptedIOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import io.opentracing.Scope;
-import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.client.impl.ClientProtoUtils;
 import org.apache.ratis.client.impl.RaftClientRpcWithProxy;
 import org.apache.ratis.conf.RaftProperties;
@@ -54,6 +52,8 @@ import org.apache.ratis.util.PeerProxyMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.opentracing.Scope;
+
 public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClient> {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientRpc.class);
 
@@ -73,8 +73,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
   public CompletableFuture<RaftClientReply> sendRequestAsync(
       RaftClientRequest request) {
     final RaftPeerId serverId = request.getServerId();
-    try (Scope scope = GlobalTracer.get().buildSpan("sendRequestAsync")
-        .startActive(true)) {
+    try {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
       // Reuse the same grpc stream for all async calls.
       return proxy.getOrderedStreamObservers().onNext(request);
@@ -86,8 +85,7 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
   @Override
   public CompletableFuture<RaftClientReply> sendRequestAsyncUnordered(RaftClientRequest request) {
     final RaftPeerId serverId = request.getServerId();
-    try (Scope scope = GlobalTracer.get().buildSpan("sendRequestAsyncUnordered")
-        .startActive(true)) {
+    try {
       final GrpcClientProtocolClient proxy = getProxies().getProxy(serverId);
       // Reuse the same grpc stream for all async calls.
       return proxy.getUnorderedAsyncStreamObservers().onNext(request);
@@ -143,9 +141,6 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
 
   private CompletableFuture<RaftClientReply> sendRequest(
       RaftClientRequest request, GrpcClientProtocolClient proxy) throws IOException {
-    Scope scope =
-        GlobalTracer.get().buildSpan("GrpcClientRpc.sendRequest")
-            .startActive(true);
     final RaftClientRequestProto requestProto =
         toRaftClientRequestProto(request);
 
@@ -155,7 +150,9 @@ public class GrpcClientRpc extends RaftClientRpcWithProxy<GrpcClientProtocolClie
         proxy.orderedWithTimeout(new StreamObserver<RaftClientReplyProto>() {
           @Override
           public void onNext(RaftClientReplyProto value) {
-            replyFuture.complete(value);
+            try (Scope ignored = TracingUtil.activate(request.getSpan())) {
+              replyFuture.complete(value);
+            }
           }
 
           @Override

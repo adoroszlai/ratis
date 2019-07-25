@@ -17,6 +17,9 @@
  */
 package org.apache.ratis.statemachine.impl;
 
+import java.io.IOException;
+import java.util.Objects;
+
 import org.apache.ratis.proto.RaftProtos.LogEntryProto;
 import org.apache.ratis.proto.RaftProtos.RaftPeerRole;
 import org.apache.ratis.proto.RaftProtos.StateMachineLogEntryProto;
@@ -26,8 +29,7 @@ import org.apache.ratis.statemachine.StateMachine;
 import org.apache.ratis.statemachine.TransactionContext;
 import org.apache.ratis.util.Preconditions;
 
-import java.io.IOException;
-import java.util.Objects;
+import io.opentracing.Span;
 
 /**
  * Implementation of {@link TransactionContext}
@@ -135,7 +137,9 @@ public class TransactionContextImpl implements TransactionContext {
     Preconditions.assertTrue(serverRole == RaftPeerRole.LEADER);
     Preconditions.assertNull(logEntry, "logEntry");
     Objects.requireNonNull(smLogEntryProto, "smLogEntryProto == null");
-    return logEntry = ServerProtoUtils.toLogEntryProto(smLogEntryProto, term, index);
+    Objects.requireNonNull(clientRequest, "clientRequest == null");
+    final Span span = getClientRequest().getSpan();
+    return logEntry = ServerProtoUtils.toLogEntryProto(smLogEntryProto, term, index, span);
   }
 
   @Override

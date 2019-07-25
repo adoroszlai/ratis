@@ -27,8 +27,6 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
-import io.opentracing.Scope;
-import io.opentracing.util.GlobalTracer;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.proto.RaftProtos.LogEntryProto;
 import org.apache.ratis.protocol.RaftPeerId;
@@ -49,6 +47,8 @@ import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.TimeDuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.opentracing.Span;
 
 /**
  * Base class of RaftLog. Currently we provide two types of RaftLog
@@ -125,17 +125,7 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
           final long newCommitIndex = Math.min(majorityIndex, getFlushIndex());
           if (newCommitIndex > oldCommittedIndex) {
             commitIndex.updateIncreasingly(newCommitIndex, traceIndexChange);
-            for (long i = oldCommittedIndex + 1; i <= newCommitIndex; i++) {
-              try {
-                LogEntryProto le = get(i);
-                Scope commit = TracingUtil
-                    .importAndCreateScope("commit", le.getTracingInfo());
-                commit.close();
-                GlobalTracer.get().scopeManager().active().close();
-              } catch (RaftLogIOException e) {
-                e.printStackTrace();
-              }
-            }
+            TracingUtil.log("commit:" + currentTerm + ":" + newCommitIndex);
           }
           return true;
         }
@@ -174,6 +164,7 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
 
   private long appendImpl(long term, TransactionContext operation) throws StateMachineException {
     checkLogState();
+    final Span span = TracingUtil.startSpan("RaftLog.appendImpl");
     try(AutoCloseableLock writeLock = writeLock()) {
       final long nextIndex = getNextIndex();
 
@@ -212,13 +203,11 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
 
     final LogEntryProto entry;
     final long nextIndex;
+
     try(AutoCloseableLock writeLock = writeLock()) {
       nextIndex = getNextIndex();
-      Scope scope = GlobalTracer.get().buildSpan("RaftLog.appendEntry")
-          .startActive(false);
       entry = ServerProtoUtils.toLogEntryProto(newCommitIndex, term, nextIndex);
       appendEntry(entry);
-      scope.close();
     }
     lastMetadataEntry = entry;
     return nextIndex;
@@ -253,8 +242,7 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
     checkLogState();
     try(AutoCloseableLock writeLock = writeLock()) {
       final long nextIndex = getNextIndex();
-      final LogEntryProto e = ServerProtoUtils.toLogEntryProto(newConf, term,
-          nextIndex);
+      final LogEntryProto e = ServerProtoUtils.toLogEntryProto(newConf, term, nextIndex);
       appendEntry(e);
       return nextIndex;
     }
@@ -373,14 +361,19 @@ public abstract class RaftLog implements RaftLogSequentialOps, Closeable {
 
   @Override
   public final CompletableFuture<Long> appendEntry(LogEntryProto entry) {
-    return runner.runSequentially(() -> appendEntryImpl(entry));
+    Span span = TracingUtil.startSpan("appendEntry", entry.getTracingInfo());
+    return runner.runSequentially(() -> TracingUtil.withActiveSpan(() -> appendEntryImpl(entry), span))
+        .whenComplete(TracingUtil.finishSpan(span, LOG));
   }
 
   protected abstract CompletableFuture<Long> appendEntryImpl(LogEntryProto entry);
 
   @Override
   public final List<CompletableFuture<Long>> append(LogEntryProto... entries) {
-    return runner.runSequentially(() -> appendImpl(entries));
+    Span span = entries.length > 0 ? TracingUtil.startSpan("append") : null;
+    List<CompletableFuture<Long>> futures = runner.runSequentially(() -> TracingUtil.withActiveSpan(() -> appendImpl(entries), span));
+    JavaUtils.allOf(futures).whenComplete(TracingUtil.finishSpan(span, LOG));
+    return futures;
   }
 
   protected abstract List<CompletableFuture<Long>> appendImpl(LogEntryProto... entries);

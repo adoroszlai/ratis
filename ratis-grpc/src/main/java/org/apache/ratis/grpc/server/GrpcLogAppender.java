@@ -17,8 +17,22 @@
  */
 package org.apache.ratis.grpc.server;
 
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.ratis.grpc.GrpcConfigKeys;
 import org.apache.ratis.grpc.GrpcUtil;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotReplyProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.server.impl.FollowerInfo;
 import org.apache.ratis.server.impl.LeaderState;
@@ -26,20 +40,18 @@ import org.apache.ratis.server.impl.LogAppender;
 import org.apache.ratis.server.impl.RaftServerImpl;
 import org.apache.ratis.server.impl.ServerProtoUtils;
 import org.apache.ratis.server.protocol.TermIndex;
-import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
-import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
-import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
-import org.apache.ratis.proto.RaftProtos.InstallSnapshotReplyProto;
-import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
 import org.apache.ratis.statemachine.SnapshotInfo;
-import org.apache.ratis.util.*;
+import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
+import org.apache.ratis.tracing.TracingUtil;
+import org.apache.ratis.util.CodeInjectionForTesting;
+import org.apache.ratis.util.Preconditions;
+import org.apache.ratis.util.TimeDuration;
+import org.apache.ratis.util.TimeoutScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import io.opentracing.Scope;
+import io.opentracing.Span;
 
 /**
  * A new log appender implementation using grpc bi-directional stream API.
@@ -251,23 +263,28 @@ public class GrpcLogAppender extends LogAppender {
         return;
       }
 
-      switch (reply.getResult()) {
-        case SUCCESS:
-          updateCommitIndex(reply.getFollowerCommit());
-          if (checkAndUpdateMatchIndex(request)) {
-            submitEventOnSuccessAppend();
-          }
-          break;
-        case NOT_LEADER:
-          if (checkResponseTerm(reply.getTerm())) {
-            return;
-          }
-          break;
-        case INCONSISTENCY:
-          updateNextIndex(reply.getNextIndex());
-          break;
-        default:
-          throw new IllegalStateException("Unexpected reply result: " + reply.getResult());
+      Span span = TracingUtil.startIfTracePresent("appendLogResponse", request.getTracingInfo());
+      try (Scope ignored = TracingUtil.activate(span)) {
+        switch (reply.getResult()) {
+          case SUCCESS:
+            updateCommitIndex(reply.getFollowerCommit());
+            if (checkAndUpdateMatchIndex(request)) {
+              submitEventOnSuccessAppend();
+            }
+            break;
+          case NOT_LEADER:
+            if (checkResponseTerm(reply.getTerm())) {
+              return;
+            }
+            break;
+          case INCONSISTENCY:
+            updateNextIndex(reply.getNextIndex());
+            break;
+          default:
+            throw new IllegalStateException("Unexpected reply result: " + reply.getResult());
+        }
+      } finally {
+        TracingUtil.finish(span);
       }
       notifyAppend();
     }

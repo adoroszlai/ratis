@@ -17,25 +17,6 @@
  */
 package org.apache.ratis.grpc.client;
 
-import io.opentracing.Scope;
-import io.opentracing.Span;
-import io.opentracing.util.GlobalTracer;
-import org.apache.ratis.client.impl.ClientProtoUtils;
-import org.apache.ratis.grpc.GrpcUtil;
-import org.apache.ratis.protocol.*;
-import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
-import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
-import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
-import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
-import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceImplBase;
-import org.apache.ratis.tracing.TracingUtil;
-import org.apache.ratis.util.CollectionUtils;
-import org.apache.ratis.util.JavaUtils;
-import org.apache.ratis.util.Preconditions;
-import org.apache.ratis.util.SlidingWindow;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -48,6 +29,30 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import org.apache.ratis.client.impl.ClientProtoUtils;
+import org.apache.ratis.grpc.GrpcUtil;
+import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
+import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
+import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
+import org.apache.ratis.proto.grpc.RaftClientProtocolServiceGrpc.RaftClientProtocolServiceImplBase;
+import org.apache.ratis.protocol.GroupMismatchException;
+import org.apache.ratis.protocol.RaftClientAsynchronousProtocol;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.RaftException;
+import org.apache.ratis.protocol.RaftGroupId;
+import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.SetConfigurationRequest;
+import org.apache.ratis.thirdparty.io.grpc.stub.StreamObserver;
+import org.apache.ratis.tracing.TracingUtil;
+import org.apache.ratis.util.CollectionUtils;
+import org.apache.ratis.util.JavaUtils;
+import org.apache.ratis.util.Preconditions;
+import org.apache.ratis.util.SlidingWindow;
+import org.apache.ratis.util.function.FunctionUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase {
   public static final Logger LOG = LoggerFactory.getLogger(GrpcClientProtocolService.class);
@@ -221,9 +226,11 @@ public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase
 
     CompletableFuture<Void> processClientRequest(RaftClientRequest request, Consumer<RaftClientReply> replyHandler) {
       try {
-        return protocol.submitClientRequestAsync(request
-        ).thenAcceptAsync(replyHandler
-        ).exceptionally(exception -> {
+        return protocol.submitClientRequestAsync(request)
+            .thenApply(FunctionUtils.consumerAsIdentity(reply -> LOG.info("ZZZ Finishing span {} on reply {}", request.getSpan(), reply)))
+            .whenComplete(TracingUtil.finishSpan(request.getSpan(), LOG))
+            .thenAcceptAsync(replyHandler)
+            .exceptionally(exception -> {
           // TODO: the exception may be from either raft or state machine.
           // Currently we skip all the following responses when getting an
           // exception from the state machine.
@@ -241,8 +248,6 @@ public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase
     public void onNext(RaftClientRequestProto request) {
       try {
         final RaftClientRequest r = ClientProtoUtils.toRaftClientRequest(request);
-        TracingUtil.importAndCreateScope("GrpcClientProtocolService.unordered",
-            request.getTracingInfo());
         processClientRequest(r);
       } catch (Throwable e) {
         responseError(e, () -> "onNext for " + ClientProtoUtils.toString(request) + " in " + name);
@@ -279,15 +284,12 @@ public class GrpcClientProtocolService extends RaftClientProtocolServiceImplBase
 
     @Override
     void processClientRequest(RaftClientRequest request) {
-      Span span = GlobalTracer.get().activeSpan();
       final CompletableFuture<Void> f = processClientRequest(request, reply -> {
         if (!reply.isSuccess()) {
           LOG.info("Failed " + request + ", reply=" + reply);
         }
-        GlobalTracer.get().scopeManager().activate(span, false);
         final RaftClientReplyProto proto = ClientProtoUtils.toRaftClientReplyProto(reply);
         responseNext(proto);
-        span.finish();
       });
       final long callId = request.getCallId();
       put(callId, f);

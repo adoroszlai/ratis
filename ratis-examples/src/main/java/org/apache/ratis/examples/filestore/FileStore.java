@@ -17,6 +17,20 @@
  */
 package org.apache.ratis.examples.filestore;
 
+import java.io.Closeable;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Function;
+import java.util.function.Supplier;
+
 import org.apache.ratis.examples.filestore.FileInfo.ReadOnly;
 import org.apache.ratis.examples.filestore.FileInfo.UnderConstruction;
 import org.apache.ratis.proto.ExamplesProtos.ReadReplyProto;
@@ -32,19 +46,9 @@ import org.apache.ratis.util.function.CheckedSupplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Function;
-import java.util.function.Supplier;
+import io.opentracing.Tracer;
+import io.opentracing.contrib.concurrent.TracedExecutorService;
+import io.opentracing.util.GlobalTracer;
 
 public class FileStore implements Closeable {
   public static final Logger LOG = LoggerFactory.getLogger(FileStore.class);
@@ -91,11 +95,12 @@ public class FileStore implements Closeable {
   private final Supplier<RaftPeerId> idSupplier;
   private final Supplier<Path> rootSupplier;
   private final FileMap files;
+  private final Tracer tracer = GlobalTracer.get();
 
-  private final ExecutorService writer = Executors.newFixedThreadPool(10);
-  private final ExecutorService committer = Executors.newFixedThreadPool(3);
-  private final ExecutorService reader = Executors.newFixedThreadPool(10);
-  private final ExecutorService deleter = Executors.newFixedThreadPool(3);
+  private final ExecutorService writer = new TracedExecutorService(Executors.newFixedThreadPool(10), tracer);
+  private final ExecutorService committer = new TracedExecutorService(Executors.newFixedThreadPool(3), tracer);
+  private final ExecutorService reader = new TracedExecutorService(Executors.newFixedThreadPool(10), tracer);
+  private final ExecutorService deleter = new TracedExecutorService(Executors.newFixedThreadPool(3), tracer);
 
   public FileStore(Supplier<RaftPeerId> idSupplier, Path dir) {
     this.idSupplier = idSupplier;

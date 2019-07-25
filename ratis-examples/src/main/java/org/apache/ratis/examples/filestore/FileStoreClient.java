@@ -17,6 +17,13 @@
  */
 package org.apache.ratis.examples.filestore;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Function;
+
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.proto.ExamplesProtos.DeleteReplyProto;
@@ -32,19 +39,13 @@ import org.apache.ratis.protocol.RaftClientReply;
 import org.apache.ratis.protocol.RaftGroup;
 import org.apache.ratis.protocol.StateMachineException;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.ProtoUtils;
 import org.apache.ratis.util.function.CheckedFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Function;
 
 /** A standalone server using raft with a configurable state machine. */
 public class FileStoreClient implements Closeable {
@@ -162,7 +163,8 @@ public class FileStoreClient implements Closeable {
         .setHeader(header)
         .setData(ByteString.copyFrom(data));
 
-    final FileStoreRequestProto request = FileStoreRequestProto.newBuilder().setWrite(write).build();
+    final FileStoreRequestProto request = FileStoreRequestProto.newBuilder().setWrite(write)
+        .setTracingInfo(TracingUtil.exportCurrentSpan()).build();
     return sendFunction.apply(request.toByteString());
   }
 
@@ -171,7 +173,8 @@ public class FileStoreClient implements Closeable {
       throws THROWABLE {
     final DeleteRequestProto.Builder delete = DeleteRequestProto.newBuilder()
         .setPath(ProtoUtils.toByteString(path));
-    final FileStoreRequestProto request = FileStoreRequestProto.newBuilder().setDelete(delete).build();
+    final FileStoreRequestProto request = FileStoreRequestProto.newBuilder().setDelete(delete)
+        .setTracingInfo(TracingUtil.exportCurrentSpan()).build();
     return sendFunction.apply(request.toByteString());
   }
 

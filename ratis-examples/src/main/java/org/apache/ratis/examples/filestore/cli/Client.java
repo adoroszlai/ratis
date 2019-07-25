@@ -17,6 +17,9 @@
  */
 package org.apache.ratis.examples.filestore.cli;
 
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.client.RaftClientConfigKeys;
@@ -31,11 +34,13 @@ import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.rpc.SupportedRpcType;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.SizeInBytes;
 import org.apache.ratis.util.TimeDuration;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 
 /**
  * Client to connect filestore example cluster.
@@ -45,38 +50,45 @@ public abstract class Client extends SubCommandBase {
 
   @Override
   public void run() throws Exception {
-    int raftSegmentPreallocatedSize = 1024 * 1024 * 1024;
-    RaftProperties raftProperties = new RaftProperties();
-    RaftConfigKeys.Rpc.setType(raftProperties, SupportedRpcType.GRPC);
-    GrpcConfigKeys.setMessageSizeMax(raftProperties,
-        SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.Appender.setBufferByteLimit(raftProperties,
-        SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.setWriteBufferSize(raftProperties,
-        SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.setPreallocatedSize(raftProperties,
-        SizeInBytes.valueOf(raftSegmentPreallocatedSize));
-    RaftServerConfigKeys.Log.setSegmentSizeMax(raftProperties,
-        SizeInBytes.valueOf(1 * 1024 * 1024 * 1024));
+    try (Tracer ignored = TracingUtil.initTracing("ratis-client")) {
+      int raftSegmentPreallocatedSize = 1024 * 1024 * 1024;
+      RaftProperties raftProperties = new RaftProperties();
+      RaftConfigKeys.Rpc.setType(raftProperties, SupportedRpcType.GRPC);
+      GrpcConfigKeys.setMessageSizeMax(raftProperties,
+          SizeInBytes.valueOf(raftSegmentPreallocatedSize));
+      RaftServerConfigKeys.Log.Appender.setBufferByteLimit(raftProperties,
+          SizeInBytes.valueOf(raftSegmentPreallocatedSize));
+      RaftServerConfigKeys.Log.setWriteBufferSize(raftProperties,
+          SizeInBytes.valueOf(raftSegmentPreallocatedSize));
+      RaftServerConfigKeys.Log.setPreallocatedSize(raftProperties,
+          SizeInBytes.valueOf(raftSegmentPreallocatedSize));
+      RaftServerConfigKeys.Log.setSegmentSizeMax(raftProperties,
+          SizeInBytes.valueOf(1 * 1024 * 1024 * 1024));
 
-    RaftServerConfigKeys.Log.setMaxCachedSegmentNum(raftProperties, 2);
+      RaftServerConfigKeys.Log.setMaxCachedSegmentNum(raftProperties, 2);
 
-    RaftClientConfigKeys.Rpc.setRequestTimeout(raftProperties,
-        TimeDuration.valueOf(50000, TimeUnit.MILLISECONDS));
-    RaftClientConfigKeys.Async.setSchedulerThreads(raftProperties, 10);
-    RaftClientConfigKeys.Async.setMaxOutstandingRequests(raftProperties, 1000);
+      RaftClientConfigKeys.Rpc.setRequestTimeout(raftProperties,
+          TimeDuration.valueOf(50000, TimeUnit.MILLISECONDS));
+      RaftClientConfigKeys.Async.setSchedulerThreads(raftProperties, 10);
+      RaftClientConfigKeys.Async.setMaxOutstandingRequests(raftProperties, 1000);
 
 
-    final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)),
-        parsePeers(peers));
+      final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)),
+          parsePeers(peers));
 
-    RaftClient.Builder builder =
-        RaftClient.newBuilder().setProperties(raftProperties);
-    builder.setRaftGroup(raftGroup);
-    builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
-    RaftClient client = builder.build();
+      RaftClient.Builder builder =
+          RaftClient.newBuilder().setProperties(raftProperties);
+      builder.setRaftGroup(raftGroup);
+      builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
+      RaftClient client = builder.build();
 
-    operation(client);
+      Span span = TracingUtil.startSpan(getClass().getSimpleName().toLowerCase());
+      try (Scope ignored1 = TracingUtil.activate(span)) {
+        operation(client);
+      } finally {
+        TracingUtil.finish(span);
+      }
+    }
   }
 
   protected abstract void operation(RaftClient client) throws IOException;

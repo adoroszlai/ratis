@@ -17,6 +17,11 @@
  */
 package org.apache.ratis.client.impl;
 
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.function.Supplier;
+
 import org.apache.ratis.client.impl.RaftClientImpl.PendingClientRequest;
 import org.apache.ratis.protocol.ClientId;
 import org.apache.ratis.protocol.GroupMismatchException;
@@ -26,14 +31,12 @@ import org.apache.ratis.protocol.RaftClientRequest;
 import org.apache.ratis.protocol.RaftException;
 import org.apache.ratis.retry.RetryPolicies;
 import org.apache.ratis.retry.RetryPolicy;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.JavaUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.Supplier;
+import io.opentracing.Span;
 
 /** Send unordered asynchronous requests to a raft service. */
 public interface UnorderedAsync {
@@ -54,8 +57,9 @@ public interface UnorderedAsync {
 
   static CompletableFuture<RaftClientReply> send(RaftClientRequest.Type type, RaftClientImpl client) {
     final long callId = RaftClientImpl.nextCallId();
+    final Span span = TracingUtil.activeSpan();
     final PendingClientRequest pending = new PendingUnorderedRequest(
-        () -> client.newRaftClientRequest(null, callId, null, type, null));
+        () -> client.newRaftClientRequest(null, callId, null, type, null, span));
     sendRequestWithRetry(pending, client);
     return pending.getReplyFuture()
         .thenApply(reply -> RaftClientImpl.handleRaftException(reply, CompletionException::new));

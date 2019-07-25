@@ -30,7 +30,7 @@ services:
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_TYPE: const
       JAEGER_AGENT_HOST: jaeger
-
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
   n1:
     image: apache/ratis-runner
@@ -46,6 +46,7 @@ services:
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_TYPE: const
       JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
   n2:
     image: apache/ratis-runner
@@ -61,22 +62,30 @@ services:
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_TYPE: const
       JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
   client:
     image: apache/ratis-runner
     volumes:
       - ../../../../:/opt/ratis
+    ports:
+      - 5005:5005
     command: ["sleep", "infinity"]
     environment:
       #JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005
       JAEGER_SAMPLER_PARAM: 1
       JAEGER_SAMPLER_TYPE: const
       JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
   jaeger:
     image: jaegertracing/all-in-one:latest
     environment:
       COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+      JAEGER_REPORTER_LOG_SPANS: "true"
+      LOG_LEVEL: debug
+      AGENT_LOG_LEVEL: debug
+      COLLECTOR_LOG_LEVEL: debug
     ports:
       - 16686:16686
 

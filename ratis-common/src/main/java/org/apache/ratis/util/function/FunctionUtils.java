@@ -31,4 +31,16 @@ public interface FunctionUtils {
       return null;
     };
   }
+
+  /**
+   * Convert the given consumer to a function with output type matching its input type
+   * such that the returned function always returns its input.
+   */
+  static <T> Function<T, T> consumerAsIdentity(Consumer<? super T> consumer) {
+    return input -> {
+      consumer.accept(input);
+      return input;
+    };
+  }
+
 }

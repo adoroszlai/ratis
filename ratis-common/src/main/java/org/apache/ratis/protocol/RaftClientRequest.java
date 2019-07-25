@@ -17,13 +17,24 @@
  */
 package org.apache.ratis.protocol;
 
-import org.apache.ratis.proto.RaftProtos.*;
-import org.apache.ratis.util.Preconditions;
-import org.apache.ratis.util.ProtoUtils;
+import static org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase.READ;
+import static org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase.STALEREAD;
+import static org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase.WATCH;
+import static org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase.WRITE;
 
 import java.util.Objects;
 
-import static org.apache.ratis.proto.RaftProtos.RaftClientRequestProto.TypeCase.*;
+import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
+import org.apache.ratis.proto.RaftProtos.ReadRequestTypeProto;
+import org.apache.ratis.proto.RaftProtos.ReplicationLevel;
+import org.apache.ratis.proto.RaftProtos.SlidingWindowEntry;
+import org.apache.ratis.proto.RaftProtos.StaleReadRequestTypeProto;
+import org.apache.ratis.proto.RaftProtos.WatchRequestTypeProto;
+import org.apache.ratis.proto.RaftProtos.WriteRequestTypeProto;
+import org.apache.ratis.util.Preconditions;
+import org.apache.ratis.util.ProtoUtils;
+
+import io.opentracing.Span;
 
 /**
  * Request from client to server
@@ -157,19 +168,21 @@ public class RaftClientRequest extends RaftClientMessage {
   private final Type type;
 
   private final SlidingWindowEntry slidingWindowEntry;
+  private final Span span;
 
   public RaftClientRequest(ClientId clientId, RaftPeerId serverId, RaftGroupId groupId, long callId, Type type) {
-    this(clientId, serverId, groupId, callId, null, type, null);
+    this(clientId, serverId, groupId, callId, null, type, null, null);
   }
 
   public RaftClientRequest(
       ClientId clientId, RaftPeerId serverId, RaftGroupId groupId,
-      long callId, Message message, Type type, SlidingWindowEntry slidingWindowEntry) {
+      long callId, Message message, Type type, SlidingWindowEntry slidingWindowEntry, Span span) {
     super(clientId, serverId, groupId);
     this.callId = callId;
     this.message = message;
     this.type = type;
     this.slidingWindowEntry = slidingWindowEntry != null? slidingWindowEntry: SlidingWindowEntry.getDefaultInstance();
+    this.span = span;
   }
 
   @Override
@@ -191,6 +204,10 @@ public class RaftClientRequest extends RaftClientMessage {
 
   public Type getType() {
     return type;
+  }
+
+  public Span getSpan() {
+    return span;
   }
 
   public boolean is(RaftClientRequestProto.TypeCase typeCase) {

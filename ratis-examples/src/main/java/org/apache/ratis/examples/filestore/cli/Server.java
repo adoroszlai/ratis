@@ -17,8 +17,11 @@
  */
 package org.apache.ratis.examples.filestore.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
+import java.io.File;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+
 import org.apache.ratis.conf.ConfUtils;
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.examples.common.SubCommandBase;
@@ -33,13 +36,14 @@ import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.statemachine.StateMachine;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.LifeCycle;
 import org.apache.ratis.util.NetUtils;
 
-import java.io.File;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
+
+import io.opentracing.Tracer;
 
 /**
  * Class to start a ratis arithmetic example server.
@@ -56,28 +60,30 @@ public class Server extends SubCommandBase {
 
   @Override
   public void run() throws Exception {
-    RaftPeerId peerId = RaftPeerId.valueOf(id);
-    RaftProperties properties = new RaftProperties();
+    try (Tracer ignored = TracingUtil.initTracing("ratis-server")) {
+      RaftPeerId peerId = RaftPeerId.valueOf(id);
+      RaftProperties properties = new RaftProperties();
 
-    RaftPeer[] peers = getPeers();
-    final int port = NetUtils.createSocketAddr(getPeer(peerId).getAddress()).getPort();
-    GrpcConfigKeys.Server.setPort(properties, port);
-    properties.setInt(GrpcConfigKeys.OutputStream.RETRY_TIMES_KEY, Integer.MAX_VALUE);
-    RaftServerConfigKeys.setStorageDirs(properties, Collections.singletonList(storageDir));
-    ConfUtils.setFile(properties::setFile, FileStoreCommon.STATEMACHINE_DIR_KEY,
-        storageDir);
-    StateMachine stateMachine = new FileStoreStateMachine(properties);
+      RaftPeer[] peers = getPeers();
+      final int port = NetUtils.createSocketAddr(getPeer(peerId).getAddress()).getPort();
+      GrpcConfigKeys.Server.setPort(properties, port);
+      properties.setInt(GrpcConfigKeys.OutputStream.RETRY_TIMES_KEY, Integer.MAX_VALUE);
+      RaftServerConfigKeys.setStorageDirs(properties, Collections.singletonList(storageDir));
+      ConfUtils.setFile(properties::setFile, FileStoreCommon.STATEMACHINE_DIR_KEY,
+          storageDir);
+      StateMachine stateMachine = new FileStoreStateMachine(properties);
 
-    final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)), peers);
-    RaftServer raftServer = RaftServer.newBuilder()
-        .setServerId(RaftPeerId.valueOf(id))
-        .setStateMachine(stateMachine).setProperties(properties)
-        .setGroup(raftGroup)
-        .build();
-    raftServer.start();
+      final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)), peers);
+      RaftServer raftServer = RaftServer.newBuilder()
+          .setServerId(RaftPeerId.valueOf(id))
+          .setStateMachine(stateMachine).setProperties(properties)
+          .setGroup(raftGroup)
+          .build();
+      raftServer.start();
 
-    for(; raftServer.getLifeCycleState() != LifeCycle.State.CLOSED;) {
-      TimeUnit.SECONDS.sleep(1);
+      for (; raftServer.getLifeCycleState() != LifeCycle.State.CLOSED; ) {
+        TimeUnit.SECONDS.sleep(1);
+      }
     }
   }
 

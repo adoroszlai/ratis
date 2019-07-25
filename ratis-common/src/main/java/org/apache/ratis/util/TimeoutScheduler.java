@@ -17,10 +17,6 @@
  */
 package org.apache.ratis.util;
 
-import org.apache.ratis.util.function.CheckedRunnable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -28,6 +24,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import org.apache.ratis.util.function.CheckedRunnable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.opentracing.contrib.concurrent.TracedScheduledExecutorService;
+import io.opentracing.util.GlobalTracer;
 
 public final class TimeoutScheduler {
   public static final Logger LOG = LoggerFactory.getLogger(TimeoutScheduler.class);
@@ -95,7 +98,7 @@ public final class TimeoutScheduler {
     if (scheduler == null) {
       Preconditions.assertTrue(numTasks == 0);
       LOG.debug("Initialize scheduler");
-      scheduler = Executors.newScheduledThreadPool(numThreads, Daemon::new);
+      scheduler = new TracedScheduledExecutorService(Executors.newScheduledThreadPool(numThreads, Daemon::new), GlobalTracer.get());
     }
     numTasks++;
     final int sid = scheduleID++;

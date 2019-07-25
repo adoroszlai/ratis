@@ -21,19 +21,26 @@ import java.io.IOException;
 
 import org.apache.hadoop.classification.InterfaceAudience;
 import org.apache.ratis.client.impl.ClientProtoUtils;
-import org.apache.ratis.proto.RaftProtos;
-import org.apache.ratis.protocol.*;
-import org.apache.ratis.server.RaftServer;
-import org.apache.ratis.thirdparty.com.google.protobuf.RpcController;
-import org.apache.ratis.thirdparty.com.google.protobuf.ServiceException;
+import org.apache.ratis.proto.RaftProtos.GroupInfoReplyProto;
+import org.apache.ratis.proto.RaftProtos.GroupInfoRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupListReplyProto;
+import org.apache.ratis.proto.RaftProtos.GroupListRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
 import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
 import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
 import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
-import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
-import org.apache.ratis.proto.RaftProtos.GroupListRequestProto;
-import org.apache.ratis.proto.RaftProtos.GroupListReplyProto;
-import org.apache.ratis.proto.RaftProtos.GroupInfoRequestProto;
-import org.apache.ratis.proto.RaftProtos.GroupInfoReplyProto;
+import org.apache.ratis.protocol.GroupInfoReply;
+import org.apache.ratis.protocol.GroupInfoRequest;
+import org.apache.ratis.protocol.GroupListReply;
+import org.apache.ratis.protocol.GroupListRequest;
+import org.apache.ratis.protocol.GroupManagementRequest;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.SetConfigurationRequest;
+import org.apache.ratis.server.RaftServer;
+import org.apache.ratis.thirdparty.com.google.protobuf.RpcController;
+import org.apache.ratis.thirdparty.com.google.protobuf.ServiceException;
+import org.apache.ratis.tracing.TracingUtil;
 
 
 @InterfaceAudience.Private
@@ -55,6 +62,8 @@ public class CombinedClientProtocolServerSideTranslatorPB
       return ClientProtoUtils.toRaftClientReplyProto(reply);
     } catch(IOException ioe) {
       throw new ServiceException(ioe);
+    } finally {
+      TracingUtil.finish(request.getSpan());
     }
   }
 

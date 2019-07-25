@@ -17,9 +17,34 @@
  */
 package org.apache.ratis.server.impl;
 
+import static org.apache.ratis.server.impl.RaftServerConstants.DEFAULT_CALLID;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.apache.ratis.client.impl.ClientProtoUtils;
-import org.apache.ratis.proto.RaftProtos.*;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
 import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult;
+import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
+import org.apache.ratis.proto.RaftProtos.CommitInfoProto;
+import org.apache.ratis.proto.RaftProtos.FileChunkProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotReplyProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
+import org.apache.ratis.proto.RaftProtos.InstallSnapshotResult;
+import org.apache.ratis.proto.RaftProtos.LogEntryProto;
+import org.apache.ratis.proto.RaftProtos.MetadataProto;
+import org.apache.ratis.proto.RaftProtos.RaftConfigurationProto;
+import org.apache.ratis.proto.RaftProtos.RaftRpcReplyProto;
+import org.apache.ratis.proto.RaftProtos.RaftRpcRequestProto;
+import org.apache.ratis.proto.RaftProtos.RequestVoteReplyProto;
+import org.apache.ratis.proto.RaftProtos.RequestVoteRequestProto;
+import org.apache.ratis.proto.RaftProtos.ServerRpcProto;
+import org.apache.ratis.proto.RaftProtos.StateMachineEntryProto;
+import org.apache.ratis.proto.RaftProtos.StateMachineLogEntryProto;
+import org.apache.ratis.proto.RaftProtos.TermIndexProto;
 import org.apache.ratis.protocol.ClientId;
 import org.apache.ratis.protocol.RaftClientRequest;
 import org.apache.ratis.protocol.RaftGroupMemberId;
@@ -31,13 +56,7 @@ import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.ProtoUtils;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import static org.apache.ratis.server.impl.RaftServerConstants.DEFAULT_CALLID;
+import io.opentracing.Span;
 
 /** Server proto utilities for internal use. */
 public interface ServerProtoUtils {
@@ -180,19 +199,22 @@ public interface ServerProtoUtils {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
-        .setTracingInfo(
-            TracingUtil.exportCurrentSpan())
+        .setTracingInfo(TracingUtil.exportCurrentSpan())
         .setConfigurationEntry(toRaftConfigurationProto(conf))
         .build();
   }
 
-  static LogEntryProto toLogEntryProto(StateMachineLogEntryProto smLog, long term, long index) {
+  static LogEntryProto toLogEntryProto(StateMachineLogEntryProto smLog, long term, long index, Span span) {
     return LogEntryProto.newBuilder()
         .setTerm(term)
         .setIndex(index)
-        .setTracingInfo(TracingUtil.exportCurrentSpan())
         .setStateMachineLogEntry(smLog)
+        .setTracingInfo(TracingUtil.exportSpan(span))
         .build();
+  }
+
+  static LogEntryProto toLogEntryProto(StateMachineLogEntryProto smLog, long term, long index) {
+    return toLogEntryProto(smLog, term, index, TracingUtil.activeSpan());
   }
 
   static LogEntryProto toLogEntryProto(long commitIndex, long term, long index) {
@@ -419,6 +441,7 @@ public interface ServerProtoUtils {
         .setInitializing(initializing);
     if (entries != null && !entries.isEmpty()) {
       b.addAllEntries(entries);
+      b.setTracingInfo(entries.iterator().next().getTracingInfo());
     }
 
     if (previous != null) {

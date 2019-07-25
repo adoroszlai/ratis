@@ -17,12 +17,6 @@
  */
 package org.apache.ratis.examples.filestore.cli;
 
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.ratis.client.RaftClient;
-import org.apache.ratis.examples.filestore.FileStoreClient;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
@@ -31,6 +25,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.ratis.client.RaftClient;
+import org.apache.ratis.examples.filestore.FileStoreClient;
+
+import com.beust.jcommander.Parameter;
+import com.beust.jcommander.Parameters;
 
 /**
  * Subcommand to generate load in filestore state machine.
@@ -88,6 +89,5 @@ public class LoadGen extends Client {
     System.out.println("Total time taken: " + (endTime - startTime) + " millis");
 
     client.close();
-    System.exit(0);
   }
 }

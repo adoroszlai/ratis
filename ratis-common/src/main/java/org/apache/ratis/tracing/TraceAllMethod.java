@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 
 /**
@@ -59,9 +61,9 @@ public class TraceAllMethod<T> implements InvocationHandler {
   public Object invoke(Object proxy, Method method, Object[] args)
       throws Throwable {
     Method delegateMethod = findDelegatedMethod(method);
-    try (Scope scope = GlobalTracer.get().buildSpan(
-        name + "." + method.getName())
-        .startActive(true)) {
+    Tracer tracer = GlobalTracer.get();
+    Span span = tracer.buildSpan(name + "." + method.getName()).start();
+    try (Scope ignored = tracer.scopeManager().activate(span)) {
       try {
         return delegateMethod.invoke(delegate, args);
       } catch (Exception ex) {
@@ -71,6 +73,8 @@ public class TraceAllMethod<T> implements InvocationHandler {
           throw ex;
         }
       }
+    } finally {
+      span.finish();
     }
   }
 

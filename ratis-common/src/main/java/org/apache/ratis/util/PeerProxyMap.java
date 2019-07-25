@@ -17,18 +17,18 @@
  */
 package org.apache.ratis.util;
 
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.ratis.protocol.AlreadyClosedException;
 import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.util.function.CheckedFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Map;
-import java.util.Objects;
-import java.util.concurrent.ConcurrentHashMap;
 
 /** A map from peer id to peer and its proxy. */
 public class PeerProxyMap<PROXY extends Closeable> implements Closeable {
@@ -72,7 +72,7 @@ public class PeerProxyMap<PROXY extends Closeable> implements Closeable {
           try {
             proxy.close();
           } catch (IOException e) {
-            LOG.warn("{}: Failed to close proxy for peer {}, proxy class: ",
+            LOG.warn("{}: Failed to close proxy for peer {}, proxy class: {}",
                 name, peer, proxy.getClass());
           }
         }

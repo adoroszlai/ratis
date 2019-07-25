@@ -39,6 +39,6 @@ public interface RaftClientTestUtil {
 
   static RaftClientRequest newRaftClientRequest(RaftClient client, RaftPeerId server,
       long callId, Message message, RaftClientRequest.Type type, SlidingWindowEntry slidingWindowEntry) {
-    return ((RaftClientImpl)client).newRaftClientRequest(server, callId, message, type, slidingWindowEntry);
+    return ((RaftClientImpl)client).newRaftClientRequest(server, callId, message, type, slidingWindowEntry, null);
   }
 }

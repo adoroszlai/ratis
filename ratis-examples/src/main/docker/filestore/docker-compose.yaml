@@ -6,7 +6,7 @@
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
+#    http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,50 +16,69 @@
 
 version: "3"
 services:
-   server1:
-      image: apache/ratis-runner
-      container_name: n0
-      hostname: n0
-      volumes:
-        - ../../../:/opt/ratis
-      ports:
-        - 9864
-      command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
-                "--id", "n0", "--storage", "/tmp/data",
-                "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
-      environment:
-        JAVA_OPTS: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+  n0:
+    image: apache/ratis-runner
+    volumes:
+      - ../../../../:/opt/ratis
+    ports:
+      - 9864:9864
+    command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
+           "--id", "n0", "--storage", "/tmp/data",
+           "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    environment:
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
-   server2:
-      image: apache/ratis-runner
-      container_name: n1
-      hostname: n1
-      volumes:
-      - ../../../:/opt/ratis
-      ports:
-      - 9864
-      command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
-                "--id", "n1", "--storage", "/tmp/data",
-                "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+  n1:
+    image: apache/ratis-runner
+    volumes:
+    - ../../../../:/opt/ratis
+    ports:
+      - 9865:9864
+    command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
+           "--id", "n1", "--storage", "/tmp/data",
+           "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    environment:
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
-   server3:
-      image: apache/ratis-runner
-      container_name: n2
-      hostname: n2
-      volumes:
-      - ../../../:/opt/ratis
-      ports:
-      - 9864
-      command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
-                "--id", "n2", "--storage", "/tmp/data",
-                "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+  n2:
+    image: apache/ratis-runner
+    volumes:
+    - ../../../../:/opt/ratis
+    ports:
+      - 9866:9864
+    command: ["/opt/ratis/src/main/bin/server.sh", "filestore", "server",
+           "--id", "n2", "--storage", "/tmp/data",
+           "--peers", "n0:n0:9864,n1:n1:9864,n2:n2:9864"]
+    environment:
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
 
-   client:
-      image: apache/ratis-runner
-      container_name: client
-      hostname: client
-      volumes:
-      - ../../../:/opt/ratis
-      ports:
-      - 9864
-      command: ["sleep", "infinity"]
+  client:
+    image: apache/ratis-runner
+    volumes:
+    - ../../../../:/opt/ratis
+    command: ["sleep", "infinity"]
+    environment:
+      JAEGER_SAMPLER_PARAM: 1
+      JAEGER_SAMPLER_TYPE: const
+      JAEGER_AGENT_HOST: jaeger
+      JAEGER_REPORTER_LOG_SPANS: "true"
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+      JAEGER_REPORTER_LOG_SPANS: "true"
+      LOG_LEVEL: debug
+      AGENT_LOG_LEVEL: debug
+      COLLECTOR_LOG_LEVEL: debug
+    ports:
+      - 16686:16686

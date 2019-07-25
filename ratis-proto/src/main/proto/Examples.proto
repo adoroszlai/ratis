@@ -27,6 +27,7 @@ message FileStoreRequestProto {
     WriteRequestProto write = 2;
     DeleteRequestProto delete = 3;
   }
+  bytes tracingInfo = 4;
 }
 
 message ReadRequestProto {

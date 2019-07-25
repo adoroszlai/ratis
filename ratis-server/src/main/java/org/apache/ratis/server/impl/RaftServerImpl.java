@@ -17,7 +17,13 @@
  */
 package org.apache.ratis.server.impl;
 
-import javax.management.ObjectName;
+import static org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.INCONSISTENCY;
+import static org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.NOT_LEADER;
+import static org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.SUCCESS;
+import static org.apache.ratis.util.LifeCycle.State.NEW;
+import static org.apache.ratis.util.LifeCycle.State.RUNNING;
+import static org.apache.ratis.util.LifeCycle.State.STARTING;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,11 +43,10 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import javax.management.ObjectName;
+
 import org.apache.ratis.conf.RaftProperties;
 import org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto;
-import static org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.INCONSISTENCY;
-import static org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.NOT_LEADER;
-import static org.apache.ratis.proto.RaftProtos.AppendEntriesReplyProto.AppendResult.SUCCESS;
 import org.apache.ratis.proto.RaftProtos.AppendEntriesRequestProto;
 import org.apache.ratis.proto.RaftProtos.CandidateInfoProto;
 import org.apache.ratis.proto.RaftProtos.CommitInfoProto;
@@ -103,15 +108,14 @@ import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.JmxRegister;
 import org.apache.ratis.util.LifeCycle;
-import static org.apache.ratis.util.LifeCycle.State.NEW;
-import static org.apache.ratis.util.LifeCycle.State.RUNNING;
-import static org.apache.ratis.util.LifeCycle.State.STARTING;
 import org.apache.ratis.util.Preconditions;
 import org.apache.ratis.util.ProtoUtils;
 import org.apache.ratis.util.TimeDuration;
 import org.apache.ratis.util.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.opentracing.Span;
 
 public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronousProtocol,
     RaftClientProtocol, RaftClientAsynchronousProtocol {
@@ -945,6 +949,12 @@ public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronou
             + ", commits" + ProtoUtils.toString(commitInfos)
             + ", entries: " + ServerProtoUtils.toString(entries));
     final List<CompletableFuture<Long>> futures;
+    final Span span = isHeartbeat ? null : TracingUtil.startSpan("appendEntries");
+    if (span != null) {
+      span.setTag("leader", leaderId.toString());
+      span.setTag("term", leaderTerm);
+      span.setTag("callId", callId);
+    }
 
     final long currentTerm;
     final long followerCommit = state.getLog().getLastCommittedIndex();
@@ -959,11 +969,13 @@ public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronou
           LOG.debug("{}: Not recognize {} (term={}) as leader, state: {} reply: {}",
               getMemberId(), leaderId, leaderTerm, state, ServerProtoUtils.toString(reply));
         }
+        TracingUtil.finish(span, LOG);
         return CompletableFuture.completedFuture(reply);
       }
       try {
         changeToFollowerAndPersistMetadata(leaderTerm, "appendEntries");
       } catch (IOException e) {
+        TracingUtil.finish(span, LOG);
         return JavaUtils.completeExceptionally(e);
       }
       state.setLeader(leaderId, "appendEntries");
@@ -985,6 +997,7 @@ public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronou
           leaderId, currentTerm, followerCommit, previous, callId, entries);
       if (inconsistencyReply != null) {
         followerState.ifPresent(fs -> fs.updateLastRpcTime(FollowerState.UpdateType.APPEND_COMPLETE));
+        TracingUtil.finish(span, LOG);
         return CompletableFuture.completedFuture(inconsistencyReply);
       }
 
@@ -997,20 +1010,23 @@ public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronou
     if (!isHeartbeat) {
       CodeInjectionForTesting.execute(RaftLog.LOG_SYNC, getId(), null);
     }
-    return JavaUtils.allOf(futures).whenCompleteAsync(
-        (r, t) -> followerState.ifPresent(fs -> fs.updateLastRpcTime(FollowerState.UpdateType.APPEND_COMPLETE))
-    ).thenApply(v -> {
-      final AppendEntriesReplyProto reply;
-      synchronized(this) {
-        state.updateStatemachine(leaderCommit, currentTerm);
-        final long n = isHeartbeat? state.getLog().getNextIndex(): entries[entries.length - 1].getIndex() + 1;
-        reply = ServerProtoUtils.toAppendEntriesReplyProto(leaderId, getMemberId(), currentTerm,
-            state.getLog().getLastCommittedIndex(), n, SUCCESS, callId);
-      }
-      logAppendEntries(isHeartbeat, () ->
-          getMemberId() + ": succeeded to handle AppendEntries. Reply: " + ServerProtoUtils.toString(reply));
-      return reply;
-    });
+    return JavaUtils.allOf(futures)
+        .whenComplete(TracingUtil.finishSpan(span, LOG))
+        .whenCompleteAsync(
+            (r, t) -> followerState.ifPresent(fs -> fs.updateLastRpcTime(FollowerState.UpdateType.APPEND_COMPLETE))
+        )
+        .thenApply(v -> {
+          final AppendEntriesReplyProto reply;
+          synchronized(this) {
+            state.updateStatemachine(leaderCommit, currentTerm);
+            final long n = isHeartbeat? state.getLog().getNextIndex(): entries[entries.length - 1].getIndex() + 1;
+            reply = ServerProtoUtils.toAppendEntriesReplyProto(leaderId, getMemberId(), currentTerm,
+                state.getLog().getLastCommittedIndex(), n, SUCCESS, callId);
+          }
+          logAppendEntries(isHeartbeat, () ->
+              getMemberId() + ": succeeded to handle AppendEntries. Reply: " + ServerProtoUtils.toString(reply));
+          return reply;
+        });
   }
 
   private AppendEntriesReplyProto checkInconsistentAppendEntries(RaftPeerId leaderId, long currentTerm,
@@ -1324,13 +1340,7 @@ public class RaftServerImpl implements RaftServerProtocol, RaftServerAsynchronou
 
       try {
         // TODO: This step can be parallelized
-        CompletableFuture<Message> stateMachineFuture =
-            TracingUtil.traceFuture(
-                stateMachine.applyTransaction(trx),
-                TracingUtil
-                    .importAndCreateScope("stateMachine.applyTransaction",
-                        next.getTracingInfo()));
-
+        CompletableFuture<Message> stateMachineFuture = stateMachine.applyTransaction(trx);
         return replyPendingRequest(next, stateMachineFuture);
       } catch (Throwable e) {
         LOG.error("{}: applyTransaction failed for index:{} proto:{}",

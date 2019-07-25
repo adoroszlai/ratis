@@ -17,6 +17,28 @@
  */
 package org.apache.ratis.server.impl;
 
+import java.io.Closeable;
+import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 import org.apache.ratis.RaftConfigKeys;
 import org.apache.ratis.conf.Parameters;
 import org.apache.ratis.conf.RaftProperties;
@@ -28,7 +50,20 @@ import org.apache.ratis.proto.RaftProtos.InstallSnapshotRequestProto;
 import org.apache.ratis.proto.RaftProtos.RaftRpcRequestProto;
 import org.apache.ratis.proto.RaftProtos.RequestVoteReplyProto;
 import org.apache.ratis.proto.RaftProtos.RequestVoteRequestProto;
-import org.apache.ratis.protocol.*;
+import org.apache.ratis.protocol.AlreadyClosedException;
+import org.apache.ratis.protocol.AlreadyExistsException;
+import org.apache.ratis.protocol.GroupInfoReply;
+import org.apache.ratis.protocol.GroupInfoRequest;
+import org.apache.ratis.protocol.GroupListReply;
+import org.apache.ratis.protocol.GroupListRequest;
+import org.apache.ratis.protocol.GroupManagementRequest;
+import org.apache.ratis.protocol.GroupMismatchException;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.RaftGroup;
+import org.apache.ratis.protocol.RaftGroupId;
+import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.SetConfigurationRequest;
 import org.apache.ratis.rpc.RpcType;
 import org.apache.ratis.server.RaftServer;
 import org.apache.ratis.server.RaftServerConfigKeys;
@@ -43,21 +78,8 @@ import org.apache.ratis.util.function.CheckedFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Closeable;
-import java.io.File;
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import io.opentracing.contrib.concurrent.TracedExecutorService;
+import io.opentracing.util.GlobalTracer;
 
 public class RaftServerProxy implements RaftServer {
   public static final Logger LOG = LoggerFactory.getLogger(RaftServerProxy.class);
@@ -173,7 +195,7 @@ public class RaftServerProxy implements RaftServer {
     this.id = id != null? id: RaftPeerId.valueOf(getIdStringFrom(serverRpc));
     this.lifeCycle = new LifeCycle(this.id + "-" + getClass().getSimpleName());
 
-    this.implExecutor = Executors.newSingleThreadExecutor();
+    this.implExecutor = new TracedExecutorService(Executors.newSingleThreadExecutor(), GlobalTracer.get());
   }
 
   /** Check the storage dir and add groups*/

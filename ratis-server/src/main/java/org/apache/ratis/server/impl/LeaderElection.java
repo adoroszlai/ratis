@@ -17,6 +17,21 @@
  */
 package org.apache.ratis.server.impl;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
 import org.apache.ratis.proto.RaftProtos.RequestVoteReplyProto;
 import org.apache.ratis.proto.RaftProtos.RequestVoteRequestProto;
 import org.apache.ratis.protocol.RaftPeer;
@@ -32,20 +47,8 @@ import org.apache.ratis.util.Timestamp;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorCompletionService;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
+import io.opentracing.contrib.concurrent.TracedExecutorService;
+import io.opentracing.util.GlobalTracer;
 
 class LeaderElection implements Runnable {
   public static final Logger LOG = LoggerFactory.getLogger(LeaderElection.class);
@@ -84,7 +87,7 @@ class LeaderElection implements Runnable {
 
     Executor(Object name, int size) {
       Preconditions.assertTrue(size > 0);
-      executor = Executors.newFixedThreadPool(size, r -> new Daemon(r, name + "-" + count.incrementAndGet()));
+      executor = new TracedExecutorService(Executors.newFixedThreadPool(size, r -> new Daemon(r, name + "-" + count.incrementAndGet())), GlobalTracer.get());
       service = new ExecutorCompletionService<>(executor);
     }
 

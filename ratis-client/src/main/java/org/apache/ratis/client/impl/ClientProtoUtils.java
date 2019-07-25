@@ -17,21 +17,60 @@
  */
 package org.apache.ratis.client.impl;
 
-import org.apache.ratis.protocol.*;
-import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
-import org.apache.ratis.proto.RaftProtos.*;
-import org.apache.ratis.tracing.TracingUtil;
-import org.apache.ratis.util.ProtoUtils;
-import org.apache.ratis.util.ReflectionUtils;
+import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.LEADERNOTREADYEXCEPTION;
+import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.NOTLEADEREXCEPTION;
+import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.NOTREPLICATEDEXCEPTION;
+import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.STATEMACHINEEXCEPTION;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto
-    .ExceptionDetailsCase.LEADERNOTREADYEXCEPTION;
-import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.NOTLEADEREXCEPTION;
-import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.NOTREPLICATEDEXCEPTION;
-import static org.apache.ratis.proto.RaftProtos.RaftClientReplyProto.ExceptionDetailsCase.STATEMACHINEEXCEPTION;
+import org.apache.ratis.proto.RaftProtos.ClientMessageEntryProto;
+import org.apache.ratis.proto.RaftProtos.GroupAddRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupInfoReplyProto;
+import org.apache.ratis.proto.RaftProtos.GroupInfoRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupListReplyProto;
+import org.apache.ratis.proto.RaftProtos.GroupListRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupManagementRequestProto;
+import org.apache.ratis.proto.RaftProtos.GroupRemoveRequestProto;
+import org.apache.ratis.proto.RaftProtos.LeaderNotReadyExceptionProto;
+import org.apache.ratis.proto.RaftProtos.NotLeaderExceptionProto;
+import org.apache.ratis.proto.RaftProtos.NotReplicatedExceptionProto;
+import org.apache.ratis.proto.RaftProtos.RaftClientReplyProto;
+import org.apache.ratis.proto.RaftProtos.RaftClientRequestProto;
+import org.apache.ratis.proto.RaftProtos.RaftRpcReplyProto;
+import org.apache.ratis.proto.RaftProtos.RaftRpcRequestProto;
+import org.apache.ratis.proto.RaftProtos.RoleInfoProto;
+import org.apache.ratis.proto.RaftProtos.SetConfigurationRequestProto;
+import org.apache.ratis.proto.RaftProtos.SlidingWindowEntry;
+import org.apache.ratis.proto.RaftProtos.StateMachineExceptionProto;
+import org.apache.ratis.proto.RaftProtos.WriteRequestTypeProto;
+import org.apache.ratis.protocol.ClientId;
+import org.apache.ratis.protocol.GroupInfoReply;
+import org.apache.ratis.protocol.GroupInfoRequest;
+import org.apache.ratis.protocol.GroupListReply;
+import org.apache.ratis.protocol.GroupListRequest;
+import org.apache.ratis.protocol.GroupManagementRequest;
+import org.apache.ratis.protocol.LeaderNotReadyException;
+import org.apache.ratis.protocol.Message;
+import org.apache.ratis.protocol.NotLeaderException;
+import org.apache.ratis.protocol.NotReplicatedException;
+import org.apache.ratis.protocol.RaftClientReply;
+import org.apache.ratis.protocol.RaftClientRequest;
+import org.apache.ratis.protocol.RaftException;
+import org.apache.ratis.protocol.RaftGroup;
+import org.apache.ratis.protocol.RaftGroupId;
+import org.apache.ratis.protocol.RaftGroupMemberId;
+import org.apache.ratis.protocol.RaftPeer;
+import org.apache.ratis.protocol.RaftPeerId;
+import org.apache.ratis.protocol.SetConfigurationRequest;
+import org.apache.ratis.protocol.StateMachineException;
+import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
+import org.apache.ratis.tracing.TracingUtil;
+import org.apache.ratis.util.ProtoUtils;
+import org.apache.ratis.util.ReflectionUtils;
+
+import io.opentracing.Span;
 
 public interface ClientProtoUtils {
 
@@ -96,6 +135,7 @@ public interface ClientProtoUtils {
   static RaftClientRequest toRaftClientRequest(RaftClientRequestProto p) {
     final RaftClientRequest.Type type = toRaftClientRequestType(p);
     final RaftRpcRequestProto request = p.getRpcRequest();
+    Span span = TracingUtil.startSpan("clientRequest", p.getTracingInfo());
     return new RaftClientRequest(
         ClientId.valueOf(request.getRequestorId()),
         RaftPeerId.valueOf(request.getReplyId()),
@@ -103,14 +143,15 @@ public interface ClientProtoUtils {
         request.getCallId(),
         toMessage(p.getMessage()),
         type,
-        request.getSlidingWindowEntry());
+        request.getSlidingWindowEntry(),
+        span);
   }
 
   static RaftClientRequestProto toRaftClientRequestProto(
       RaftClientRequest request) {
     final RaftClientRequestProto.Builder b = RaftClientRequestProto.newBuilder()
         .setRpcRequest(toRaftRpcRequestProtoBuilder(request))
-        .setTracingInfo(TracingUtil.exportCurrentSpan());
+        .setTracingInfo(TracingUtil.exportSpan(request.getSpan()));
     if (request.getMessage() != null) {
       b.setMessage(toClientMessageEntryProtoBuilder(request.getMessage()));
     }
@@ -151,7 +192,6 @@ public interface ClientProtoUtils {
 
   static RaftClientReplyProto toRaftClientReplyProto(RaftClientReply reply) {
     final RaftClientReplyProto.Builder b = RaftClientReplyProto.newBuilder();
-    b.setTracingInfo(TracingUtil.exportCurrentSpan());
     if (reply != null) {
       b.setRpcReply(toRaftRpcReplyProtoBuilder(reply.getClientId().toByteString(),
           reply.getServerId().toByteString(), reply.getRaftGroupId(),

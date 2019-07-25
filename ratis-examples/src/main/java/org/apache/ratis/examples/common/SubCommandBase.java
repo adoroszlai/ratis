@@ -17,11 +17,12 @@
  */
 package org.apache.ratis.examples.common;
 
-import com.beust.jcommander.Parameter;
+import java.util.stream.Stream;
+
 import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.protocol.RaftPeerId;
 
-import java.util.stream.Stream;
+import com.beust.jcommander.Parameter;
 
 /**
  * Base subcommand class which includes the basic raft properties.
@@ -37,7 +38,7 @@ public abstract class SubCommandBase {
           + "name:host:port)", required = true)
   protected String peers;
 
-  public static RaftPeer[] parsePeers(String peers) {
+  protected static RaftPeer[] parsePeers(String peers) {
     return Stream.of(peers.split(",")).map(address -> {
       String[] addressParts = address.split(":");
       return new RaftPeer(RaftPeerId.valueOf(addressParts[0]),
@@ -45,7 +46,7 @@ public abstract class SubCommandBase {
     }).toArray(RaftPeer[]::new);
   }
 
-  public RaftPeer[] getPeers() {
+  protected RaftPeer[] getPeers() {
     return parsePeers(peers);
   }
 

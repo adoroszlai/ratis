@@ -17,6 +17,8 @@
  */
 package org.apache.ratis.examples.arithmetic.cli;
 
+import java.io.IOException;
+
 import org.apache.ratis.client.RaftClient;
 import org.apache.ratis.conf.Parameters;
 import org.apache.ratis.conf.RaftProperties;
@@ -28,32 +30,35 @@ import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.thirdparty.com.google.protobuf.ByteString;
 import org.apache.ratis.tracing.TracingUtil;
 
-import java.io.IOException;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
 
 /**
  * Client to connect arithmetic example cluster.
  */
 public abstract class Client extends SubCommandBase {
 
-
   @Override
   public void run() throws Exception {
-    TracingUtil.initTracing("ratis-client");
-    RaftProperties raftProperties = new RaftProperties();
+    try (Tracer tracer = TracingUtil.initTracing("ratis-client")) {
+      RaftProperties raftProperties = new RaftProperties();
 
-    final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)),
-        parsePeers(peers));
+      final RaftGroup raftGroup = RaftGroup.valueOf(RaftGroupId.valueOf(ByteString.copyFromUtf8(raftGroupId)), getPeers());
 
-    RaftClient.Builder builder =
-        RaftClient.newBuilder().setProperties(raftProperties);
-    builder.setRaftGroup(raftGroup);
+      RaftClient client = RaftClient.newBuilder()
+          .setProperties(raftProperties)
+          .setRaftGroup(raftGroup)
+          .setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties))
+          .build();
 
-    builder.setClientRpc(new GrpcFactory(new Parameters()).newRaftClientRpc(ClientId.randomId(), raftProperties));
-    RaftClient client = builder.build();
-
-    operation(client);
-
-
+      Span span = tracer.buildSpan(getClass().getSimpleName()).start();
+      try (Scope ignored = tracer.scopeManager().activate(span)) {
+        operation(client);
+      } finally {
+        TracingUtil.finish(span);
+      }
+    }
   }
 
   protected abstract void operation(RaftClient client) throws IOException;

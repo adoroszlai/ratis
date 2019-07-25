@@ -17,6 +17,16 @@
  */
 package org.apache.ratis.client.impl;
 
+import java.io.IOException;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Semaphore;
+import java.util.function.Function;
+import java.util.function.LongFunction;
+
 import org.apache.ratis.client.RaftClientConfigKeys;
 import org.apache.ratis.client.impl.RaftClientImpl.PendingClientRequest;
 import org.apache.ratis.conf.RaftProperties;
@@ -31,6 +41,7 @@ import org.apache.ratis.protocol.RaftException;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.retry.RetryPolicies;
 import org.apache.ratis.retry.RetryPolicy;
+import org.apache.ratis.tracing.TracingUtil;
 import org.apache.ratis.util.IOUtils;
 import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.Preconditions;
@@ -39,15 +50,7 @@ import org.apache.ratis.util.SlidingWindow;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Semaphore;
-import java.util.function.Function;
-import java.util.function.LongFunction;
+import io.opentracing.Span;
 
 /** Send ordered asynchronous requests to a raft service. */
 class OrderedAsync {
@@ -150,8 +153,9 @@ class OrderedAsync {
     }
 
     final long callId = RaftClientImpl.nextCallId();
+    final Span span = TracingUtil.activeSpan();
     final LongFunction<PendingOrderedRequest> constructor = seqNum -> new PendingOrderedRequest(seqNum,
-        slidingWindowEntry -> client.newRaftClientRequest(server, callId, message, type, slidingWindowEntry));
+        slidingWindowEntry -> client.newRaftClientRequest(server, callId, message, type, slidingWindowEntry, span));
     return getSlidingWindow(server).submitNewRequest(constructor, this::sendRequestWithRetry
     ).getReplyFuture(
     ).thenApply(reply -> RaftClientImpl.handleRaftException(reply, CompletionException::new)

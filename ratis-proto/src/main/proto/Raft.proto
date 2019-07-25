@@ -177,7 +177,6 @@ message AppendEntriesReplyProto {
   uint64 nextIndex = 3;
   AppendResult result = 4;
   uint64 followerCommit = 5;
-  bytes tracingInfo = 6;
 }
 
 message InstallSnapshotRequestProto {
@@ -297,7 +296,6 @@ message StateMachineExceptionProto {
 message RaftClientReplyProto {
   RaftRpcReplyProto rpcReply = 1;
   ClientMessageEntryProto message = 2;
-  bytes tracingInfo = 7;
 
   oneof ExceptionDetails {
     NotLeaderExceptionProto notLeaderException = 3;
