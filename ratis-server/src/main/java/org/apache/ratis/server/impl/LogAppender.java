@@ -53,10 +53,6 @@ import static org.apache.ratis.util.LifeCycle.State.STARTING;
 public class LogAppender {
   public static final Logger LOG = LoggerFactory.getLogger(LogAppender.class);
 
-  private static final LifeCycle.State[] NOT_RUNNING_STATES = {
-      CLOSING, CLOSED, EXCEPTION
-  };
-
   class AppenderDaemon {
     private final String name = LogAppender.this + "-" + getClass().getSimpleName();
     private final LifeCycle lifeCycle = new LifeCycle(name);
@@ -100,7 +96,7 @@ public class LogAppender {
     }
 
     boolean isRunning() {
-      return !lifeCycle.getCurrentState().isOneOf(NOT_RUNNING_STATES);
+      return !lifeCycle.getCurrentState().isOneOf(LifeCycle.States.CLOSING_OR_CLOSED_OR_EXCEPTION);
     }
 
     void stop() {
