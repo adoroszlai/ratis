@@ -149,7 +149,7 @@ jobs:
   sonar:
     name: sonar
     runs-on: ubuntu-18.04
-    if: secrets.SONARCLOUD_TOKEN != '' && github.event_name != 'pull_request'
+    if: ${{ secrets.SONARCLOUD_TOKEN != '' && github.event_name != 'pull_request' }}
     steps:
         - uses: actions/checkout@master
         - name: Cache for maven dependencies
