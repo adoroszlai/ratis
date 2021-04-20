@@ -339,7 +339,7 @@ public abstract class RaftReconfigurationBaseTest<CLUSTER extends MiniRaftCluste
         final PeerChanges c1 = cluster.addNewPeers(numNewPeer, startNewPeer);
         LOG.info("Start changing the configuration: {}",
                 asList(c1.allPeersInNewConf));
-        final AtomicReference<Boolean> success = new AtomicReference<>();
+        final AtomicBoolean success = new AtomicBoolean();
 
         Thread clientThread = new Thread(() -> {
           try {
@@ -362,7 +362,7 @@ public abstract class RaftReconfigurationBaseTest<CLUSTER extends MiniRaftCluste
         FIVE_SECONDS.sleep();
         LOG.info(cluster.printServers());
 
-        RaftTestUtil.waitFor(() -> success.get(), 300, 15000);
+        RaftTestUtil.waitFor(success::get, 300, 15000);
 
         final RaftLog leaderLog = cluster.getLeader().getRaftLog();
         for (RaftPeer newPeer : c1.newPeers) {
