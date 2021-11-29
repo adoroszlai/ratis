@@ -48,7 +48,8 @@ class GroupManagementImpl implements GroupManagementApi {
 
     final long callId = CallId.getAndIncrement();
     client.getClientRpc().addRaftPeers(newGroup.getPeers());
-    return client.io().sendRequestWithRetry(() -> GroupManagementRequest.newAdd(client.getId(), server, callId, newGroup));
+    return client.io().sendRequestWithRetry(() ->
+        GroupManagementRequest.newAdd(client.getId(), server, callId, newGroup));
   }
 
   @Override
