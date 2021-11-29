@@ -31,6 +31,8 @@ import org.apache.ratis.protocol.RaftGroupId;
 import org.apache.ratis.protocol.RaftPeer;
 import org.apache.ratis.protocol.RaftPeerId;
 import org.apache.ratis.protocol.SetConfigurationRequest;
+import org.apache.ratis.protocol.exceptions.AlreadyExistsException;
+import org.apache.ratis.retry.ExceptionDependentRetry;
 import org.apache.ratis.retry.RetryPolicies;
 import org.apache.ratis.retry.RetryPolicy;
 import org.apache.ratis.rpc.CallId;
@@ -645,7 +647,10 @@ public abstract class MiniRaftCluster implements Closeable {
   }
 
   private RetryPolicy getDefaultRetryPolicy() {
-    return RetryPolicies.retryForeverWithSleep(RETRY_INTERVAL_DEFAULT);
+    return ExceptionDependentRetry.newBuilder()
+        .setDefaultPolicy(RetryPolicies.retryForeverWithSleep(RETRY_INTERVAL_DEFAULT))
+        .setExceptionToPolicy(AlreadyExistsException.class, RetryPolicies.noRetry())
+        .build();
   }
 
   public RaftServerProxy getServer(RaftPeerId id) {
