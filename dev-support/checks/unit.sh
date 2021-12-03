@@ -26,7 +26,7 @@ if [[ ${ITERATIONS} -le 0 ]]; then
   ITERATIONS=1
 fi
 
-export MAVEN_OPTS="-Xmx4096m $MAVEN_OPTS"
+export MAVEN_OPTS="-Xmx4096m ${MAVEN_OPTS:-}"
 MAVEN_OPTIONS='-B'
 
 if [[ "${FAIL_FAST:-}" == "true" ]]; then
