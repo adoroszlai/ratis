@@ -34,8 +34,9 @@ jobs:
             restore-keys: |
               maven-repo-${{ hashFiles('**/pom.xml') }}
               maven-repo-
-        - run: ./dev-support/checks/unit.sh -Dtest='TestNettyDataStream*WithGrpcCluster,Test*OutputStream*'
+        - run: ./dev-support/checks/unit.sh -Dtest='TestNettyDataStream*WithGrpcCluster,Test*OutputStream*' -am -pl :ratis-test
         - run: grep "Tests run" target/unit/output.log
+          if: always()
         - name: Delete temporary build artifacts
           run: rm -rf ~/.m2/repository/org/apache/ratis
           if: always()
