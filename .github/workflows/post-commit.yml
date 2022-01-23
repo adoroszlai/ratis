@@ -102,7 +102,7 @@ jobs:
             restore-keys: |
               maven-repo-${{ hashFiles('**/pom.xml') }}
               maven-repo-
-        - run: ./dev-support/checks/unit.sh -P${{ matrix.profile }}-tests
+        - run: ./dev-support/checks/unit.sh -P${{ matrix.profile }}-tests -Djava.util.concurrent.ForkJoinPool.common.parallelism=2
         - name: Summary of failures
           run: cat target/${{ github.job }}/summary.txt
           if: ${{ !cancelled() }}
