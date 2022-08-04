@@ -27,6 +27,7 @@ jobs:
           - 3
           - 4
           - 5
+      fail-fast: false
     steps:
         # TEMPORARY WHILE GITHUB FIXES https://github.com/actions/virtual-environments/issues/3185
         - name: Add the current IP address, long hostname and short hostname record to /etc/hosts file
