@@ -19,6 +19,14 @@ on:
 jobs:
   unit:
     runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        split:
+          - 1
+          - 2
+          - 3
+          - 4
+          - 5
     steps:
         # TEMPORARY WHILE GITHUB FIXES https://github.com/actions/virtual-environments/issues/3185
         - name: Add the current IP address, long hostname and short hostname record to /etc/hosts file
@@ -43,7 +51,7 @@ jobs:
         - uses: actions/upload-artifact@master
           if: ${{ !cancelled() }}
           with:
-            name: unit
+            name: unit-${{ matrix.split }}
             path: target/unit
         - name: Delete temporary build artifacts
           run: rm -rf ~/.m2/repository/org/apache/ratis
