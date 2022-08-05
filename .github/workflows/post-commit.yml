@@ -43,7 +43,7 @@ jobs:
             restore-keys: |
               maven-repo-${{ hashFiles('**/pom.xml') }}
               maven-repo-
-        - run: ./dev-support/checks/unit.sh -Dtest=TestLogAppenderWithGrpc
+        - run: ./dev-support/checks/unit.sh -Dtest=TestInstallSnapshotNotificationWithGrpc
           env:
             ITERATIONS: 20
         - name: Summary of failures
