@@ -31,6 +31,7 @@ import org.apache.ratis.statemachine.impl.BaseStateMachine;
 import org.apache.ratis.statemachine.impl.SimpleStateMachineStorage;
 import org.apache.ratis.statemachine.impl.SingleFileSnapshotInfo;
 import org.apache.ratis.util.JavaUtils;
+import org.apache.ratis.util.TimeDuration;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -76,6 +77,15 @@ public class CounterStateMachine extends BaseStateMachine {
   private final SimpleStateMachineStorage storage = new SimpleStateMachineStorage();
   private final AtomicInteger counter = new AtomicInteger(0);
 
+  private final TimeDuration simulatedSlowness;
+
+  CounterStateMachine(TimeDuration simulatedSlowness) {
+    this.simulatedSlowness = simulatedSlowness;
+  }
+  CounterStateMachine() {
+    this.simulatedSlowness = TimeDuration.ZERO;
+  }
+
   /** @return the current state. */
   private synchronized CounterState getState() {
     return new CounterState(getLastAppliedTermIndex(), counter.get());
@@ -87,6 +97,14 @@ public class CounterStateMachine extends BaseStateMachine {
   }
 
   private synchronized int incrementCounter(TermIndex termIndex) {
+    try {
+      if (!simulatedSlowness.equals(TimeDuration.ZERO)) {
+        simulatedSlowness.sleep();
+      }
+    } catch (InterruptedException e) {
+      LOG.warn("{}: get interrupted in simulated slowness sleep before apply transaction", this);
+      Thread.currentThread().interrupt();
+    }
     updateLastAppliedTermIndex(termIndex);
     return counter.incrementAndGet();
   }
