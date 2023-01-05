@@ -103,7 +103,7 @@ public class SnapshotManager {
       }
 
       final File tmpSnapshotFile = new File(tmpDir, getRelativePath.apply(chunk));
-      FileUtils.createDirectories(tmpSnapshotFile);
+      FileUtils.createDirectoriesDeleteExistingNonDirectory(tmpSnapshotFile.getParentFile());
 
       FileOutputStream out = null;
       try {
