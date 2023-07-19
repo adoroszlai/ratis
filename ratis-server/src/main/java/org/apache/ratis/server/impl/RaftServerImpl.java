@@ -545,8 +545,8 @@ class RaftServerImpl implements RaftServer.Division,
         role.shutdownFollowerState();
       }
       role.startFollowerState(this, reason);
-      firstElectionSinceStartup.set(false);
     }
+    firstElectionSinceStartup.set(false);
     return metadataUpdated;
   }
 
