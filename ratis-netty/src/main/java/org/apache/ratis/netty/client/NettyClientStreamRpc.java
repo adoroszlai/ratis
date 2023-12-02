@@ -454,7 +454,7 @@ public class NettyClientStreamRpc implements DataStreamClientRpc {
 
   @Override
   public void close() {
-    final boolean flush = outstandingRequests.shouldFlush(true, 0, SizeInBytes.ZERO);
+    final boolean flush = outstandingRequests.shouldFlush(false, 1, SizeInBytes.ONE);
     if (flush) {
       Optional.ofNullable(connection.getChannelUninterruptibly())
           .map(c -> c.writeAndFlush(EMPTY_BYTE_BUFFER))
