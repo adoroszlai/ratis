@@ -142,7 +142,7 @@ public class NettyClientStreamRpc implements DataStreamClientRpc {
     private final Supplier<ChannelInitializer<SocketChannel>> channelInitializerSupplier;
 
     /** The {@link ChannelFuture} is null when this connection is closed. */
-    private final AtomicReference<Supplier<ChannelFuture>> ref;
+    private final AtomicReference<MemoizedSupplier<ChannelFuture>> ref;
 
     Connection(InetSocketAddress address, WorkerGroupGetter workerGroup,
         Supplier<ChannelInitializer<SocketChannel>> channelInitializerSupplier) {
@@ -221,18 +221,18 @@ public class NettyClientStreamRpc implements DataStreamClientRpc {
       // AtomicReference.getAndUpdate may call the update function multiple times and discard the old objects.
       // The outer supplier creates only an inner supplier, which can be discarded without any leakage.
       // The inner supplier will be invoked (i.e. connect) ONLY IF it is successfully set to the reference.
-      final MemoizedSupplier<Supplier<ChannelFuture>> supplier = MemoizedSupplier.valueOf(
+      final MemoizedSupplier<MemoizedSupplier<ChannelFuture>> supplier = MemoizedSupplier.valueOf(
           () -> MemoizedSupplier.valueOf(this::connect));
-      final Supplier<ChannelFuture> previous = ref.getAndUpdate(prev -> prev == null? null: supplier.get());
-      if (previous != null) {
+      final MemoizedSupplier<ChannelFuture> previous = ref.getAndUpdate(prev -> prev == null? null: supplier.get());
+      if (previous != null && previous.isInitialized()) {
         previous.get().channel().close();
       }
       return getChannelFuture();
     }
 
     void close() {
-      final Supplier<ChannelFuture> previous = ref.getAndSet(null);
-      if (previous != null) {
+      final MemoizedSupplier<ChannelFuture> previous = ref.getAndSet(null);
+      if (previous != null && previous.isInitialized()) {
         // wait channel closed, do shutdown workerGroup
         previous.get().channel().close().addListener(future -> workerGroup.shutdownGracefully());
       }
