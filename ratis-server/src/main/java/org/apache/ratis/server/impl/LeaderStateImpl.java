@@ -806,9 +806,11 @@ class LeaderStateImpl implements LeaderState {
     } else {
       final long commitIndex = server.getState().getLog().getLastCommittedIndex();
       // check progress for the new followers
-      final EnumSet<BootStrapProgress> reports = getLogAppenders()
+      final List<FollowerInfo> laggingFollowers = getLogAppenders()
           .map(LogAppender::getFollower)
           .filter(follower -> !isCaughtUp(follower))
+          .collect(Collectors.toList());
+      final EnumSet<BootStrapProgress> reports = laggingFollowers.stream()
           .map(follower -> checkProgress(follower, commitIndex))
           .collect(Collectors.toCollection(() -> EnumSet.noneOf(BootStrapProgress.class)));
       if (reports.contains(BootStrapProgress.NOPROGRESS)) {
@@ -816,9 +818,14 @@ class LeaderStateImpl implements LeaderState {
       } else if (!reports.contains(BootStrapProgress.PROGRESSING)) {
         // all caught up!
         applyOldNewConf();
-        getLogAppenders()
+        final List<FollowerInfo> catchingUpFollowers = getLogAppenders()
             .map(LogAppender::getFollower)
+            .filter(follower -> !isCaughtUp(follower))
             .filter(f -> server.getRaftConf().containsInConf(f.getId()))
+            .collect(Collectors.toList());
+        Preconditions.assertTrue(laggingFollowers.equals(catchingUpFollowers),
+            () -> "stopped lagging: " + laggingFollowers + " but to catchUp: " + catchingUpFollowers);
+        laggingFollowers.stream()
             .map(FollowerInfoImpl.class::cast)
             .forEach(FollowerInfoImpl::catchUp);
       }
