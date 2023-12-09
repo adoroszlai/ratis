@@ -44,7 +44,7 @@ on:
 env:
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
   TEST_CLASS: ${{ github.event.inputs.test-class }}
-  TEST_METHOD: ${{ github.event.inputs.test-name }}
+  TEST_METHOD: ${{ github.event.inputs.test-method }}
   ITERATIONS: ${{ github.event.inputs.iterations }}
   FAIL_FAST: ${{ github.event.inputs.fail-fast }}
 run-name: ${{ github.event_name == 'workflow_dispatch' && format('{0}#{1}[{2}]-{3}x{4}', inputs.test-class, inputs.test-method, inputs.ref, inputs.splits, inputs.iterations) || '' }}
@@ -103,7 +103,7 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 8
-      - name: "Execute ${{ env.TEST_SPEC }}"
+      - name: Execute ${{ env.TEST_SPEC }}
         run: dev-support/checks/unit.sh -Dtest="$TEST_SPEC"
         continue-on-error: true
       - name: Summary of failures
