@@ -785,6 +785,7 @@ class LeaderStateImpl implements LeaderState {
         && follower.hasAttemptedToInstallSnapshot()) {
       return BootStrapProgress.CAUGHTUP;
     } else {
+      LOG.info("ZZZ {} progressing towards {}", follower, committed);
       return BootStrapProgress.PROGRESSING;
     }
   }
@@ -824,6 +825,7 @@ class LeaderStateImpl implements LeaderState {
         getLogAppenders()
             .map(LogAppender::getFollower)
             .filter(f -> server.getRaftConf().containsInConf(f.getId()))
+            .peek(f -> LOG.info("ZZZ {} caught up with {}", f, commitIndex))
             .map(FollowerInfoImpl.class::cast)
             .forEach(FollowerInfoImpl::catchUp);
       }
