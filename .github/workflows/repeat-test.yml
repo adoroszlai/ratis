@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-20.04
     outputs:
       matrix: ${{ steps.generate.outputs.matrix }}
-      test-spec: ${{ steps.generate.outputs.test-spec }}
+      test-spec: ${{ steps.test-spec.outputs.test-spec }}
     steps:
       - id: generate
         name: Generate test matrix
@@ -66,6 +66,7 @@ jobs:
           split_matrix="[${x%,}]"
           echo "matrix=$split_matrix" >> $GITHUB_OUTPUT
       - name: Define test spec
+        id: test-spec
         run: |
           if [[ -z "$TEST_METHOD" ]]; then
             test_spec="$TEST_CLASS"
@@ -103,6 +104,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 8
+      - name: Validate test spec
+        run: if [[ -z "$TEST_SPEC" ]]; then exit 1; fi
       - name: Execute ${{ env.TEST_SPEC }}
         run: dev-support/checks/unit.sh -Dtest="$TEST_SPEC"
         continue-on-error: true
