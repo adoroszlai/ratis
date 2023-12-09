@@ -72,12 +72,15 @@ jobs:
           else
             test_spec="$TEST_CLASS#$TEST_METHOD"
           fi
+          echo "Test to be run: $test_spec"
           echo "test-spec=$test_spec" >> $GITHUB_OUTPUT
   test:
     if: ${{ always() }}
     needs:
       - prepare
     runs-on: ubuntu-20.04
+    env:
+      TEST_SPEC: ${{ needs.prepare.outputs.test-spec }}
     strategy:
       matrix:
         split: ${{ fromJson(needs.prepare.outputs.matrix) }}
@@ -100,8 +103,8 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: 8
-      - name: "Execute ${{ needs.prepare.outputs.test-spec }}"
-        run: dev-support/checks/unit.sh -Dtest="$test_spec"
+      - name: "Execute ${{ env.TEST_SPEC }}"
+        run: dev-support/checks/unit.sh -Dtest="$TEST_SPEC"
         continue-on-error: true
       - name: Summary of failures
         run: dev-support/checks/_summary.sh target/unit/summary.txt
