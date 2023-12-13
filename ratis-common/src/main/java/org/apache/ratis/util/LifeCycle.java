@@ -265,7 +265,7 @@ public class LifeCycle {
   public final <T extends Throwable> void startAndTransition(
       CheckedRunnable<T> startImpl, Class<? extends Throwable>... exceptionClasses)
       throws T {
-    transition(State.STARTING);
+    transition(any -> State.STARTING);
     try {
       startImpl.run();
       transition(State.RUNNING);
