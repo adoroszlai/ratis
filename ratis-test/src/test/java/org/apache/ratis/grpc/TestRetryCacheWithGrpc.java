@@ -34,7 +34,9 @@ import org.apache.ratis.server.RaftServerConfigKeys;
 import org.apache.ratis.server.impl.RetryCacheTestUtil;
 import org.apache.ratis.statemachine.impl.SimpleStateMachine4Testing;
 import org.apache.ratis.statemachine.StateMachine;
+import org.apache.ratis.util.JavaUtils;
 import org.apache.ratis.util.Slf4jUtils;
+import org.apache.ratis.util.TimeDuration;
 import org.junit.Assert;
 import org.junit.Test;
 import org.slf4j.event.Level;
@@ -45,6 +47,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 
 public class TestRetryCacheWithGrpc
     extends RetryCacheTests<MiniRaftClusterWithGrpc>
@@ -80,12 +83,13 @@ public class TestRetryCacheWithGrpc
       return new SimpleMessage("m" + count.incrementAndGet());
     }
 
-    void assertRetryCacheEntry(RaftClient client, long callId, boolean exist) {
-      final RetryCache.Entry e = RetryCacheTestUtil.get(leader, client.getId(), callId);
+    void assertRetryCacheEntry(RaftClient client, long callId, boolean exist) throws InterruptedException {
+      Supplier<RetryCache.Entry> lookup = () -> RetryCacheTestUtil.get(leader, client.getId(), callId);
       if (exist) {
-        Assert.assertNotNull(e);
+        Assert.assertNotNull(lookup.get());
       } else {
-        Assert.assertNull(e);
+        JavaUtils.attemptUntilTrue(() -> lookup.get() == null, 100, TimeDuration.ONE_MILLISECOND,
+            "entry removed from retry cache", null);
       }
     }
 
