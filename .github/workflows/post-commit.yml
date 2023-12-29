@@ -208,6 +208,9 @@ jobs:
           run: rm -rf ~/.m2/repository/org/apache/ratis
           if: always()
   coverage:
+    needs:
+      - build
+      - unit
     runs-on: ubuntu-20.04
     if: github.event_name != 'pull_request'
     steps:
