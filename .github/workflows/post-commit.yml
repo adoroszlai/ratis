@@ -209,7 +209,7 @@ jobs:
           if: always()
   coverage:
     runs-on: ubuntu-20.04
-    if: (github.repository == 'apache/ratis' || github.repository == 'apache/incubator-ratis') && github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request'
     steps:
         - uses: actions/checkout@v3
           with:
