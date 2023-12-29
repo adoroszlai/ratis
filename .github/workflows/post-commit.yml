@@ -16,6 +16,8 @@ name: build-branch
 on:
   - push
   - pull_request
+env:
+  WITH_COVERAGE: true
 jobs:
   build:
     runs-on: ubuntu-20.04

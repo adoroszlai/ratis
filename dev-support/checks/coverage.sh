@@ -44,14 +44,9 @@ rm -fr target/coverage-classes
 mkdir -p target/coverage-classes
 
 #Unzip all classes from the build
-find ratis* -name 'ratis-*.jar' | \
-    grep -v -E 'tests' | \
-    xargs -n1 unzip -o -q -d target/coverage-classes
-
-#Exclude some classes from the coverage
-find target/coverage-classes -name proto -type d | xargs rm -fr
-find target/coverage-classes -name generated -type d | xargs rm -fr
-find target/coverage-classes -name v1 -type d | xargs rm -fr
+find ratis-assembly/target/apache-ratis* -name 'ratis-*.jar' \
+  | grep -v -E 'examples|proto|test|thirdparty' \
+  | xargs -n1 unzip -o -q -d target/coverage-classes
 
 #generate the reports
 jacoco report "$REPORT_DIR/jacoco-all.exec" --classfiles target/coverage-classes --html "$REPORT_DIR/all" --xml "$REPORT_DIR/all.xml"
