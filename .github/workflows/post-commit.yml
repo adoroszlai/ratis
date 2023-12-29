@@ -237,7 +237,7 @@ jobs:
         - name: Untar binaries
           run: |
             mkdir -p ratis-assembly/target
-            tar xzvf target/artifacts/ratis-bin/ratis*.tar.gz -C ratis-assembly/target
+            tar xzvf target/artifacts/ratis-bin/apache-ratis*.tar.gz -C ratis-assembly/target
         - name: Calculate combined coverage
           run: ./dev-support/checks/coverage.sh
         - run: ./dev-support/checks/sonar.sh
