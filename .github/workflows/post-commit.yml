@@ -150,6 +150,11 @@ jobs:
             key: maven-repo-${{ hashFiles('**/pom.xml') }}
             restore-keys: |
               maven-repo-
+        - name: Setup java
+          uses: actions/setup-java@v3
+          with:
+            distribution: 'temurin'
+            java-version: 8
         - name: Run tests
           run: ./dev-support/checks/unit.sh -P${{ matrix.profile }}-tests
         - name: Summary of failures
