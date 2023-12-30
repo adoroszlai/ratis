@@ -37,16 +37,25 @@ jacoco() {
   java -jar target/dependency/org.jacoco.cli-${JACOCO_VERSION}-nodeps.jar "$@"
 }
 
-#Merge all the jacoco.exec files
+# merge all jacoco-combined.exec files
 jacoco merge $(find target -name jacoco-combined.exec) --destfile "$REPORT_DIR/jacoco-all.exec"
 
-rm -fr target/coverage-classes
-mkdir -p target/coverage-classes
+rm -fr target/coverage-classes target/coverage-sources
+mkdir -p target/coverage-classes target/coverage-sources
 
-#Unzip all classes from the build
+# unzip all classes from the build
 find ratis-assembly/target/apache-ratis* -name 'ratis-*.jar' \
   | grep -v -E 'examples|proto|test|thirdparty' \
   | xargs -n1 unzip -o -q -d target/coverage-classes
 
-#generate the reports
-jacoco report "$REPORT_DIR/jacoco-all.exec" --classfiles target/coverage-classes --html "$REPORT_DIR/all" --xml "$REPORT_DIR/all.xml"
+# copy all sources
+for d in $(find ratis* -type d -name java); do
+  cp -r "$d"/org target/coverage-sources/
+done
+
+# generate the reports
+jacoco report "$REPORT_DIR/jacoco-all.exec" \
+  --sourcefiles target/coverage-sources \
+  --classfiles target/coverage-classes \
+  --html "$REPORT_DIR/all" \
+  --xml "$REPORT_DIR/all.xml"
