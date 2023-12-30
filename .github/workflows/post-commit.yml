@@ -241,11 +241,6 @@ jobs:
           uses: actions/download-artifact@v3
           with:
             path: target/artifacts
-            name:
-              - ratis-bin
-              - unit-grpc
-              - unit-misc
-              - unit-server
         - name: Untar binaries
           run: |
             mkdir -p ratis-assembly/target
