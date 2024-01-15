@@ -37,6 +37,7 @@ import java.util.function.Function;
 public class TestStreamObserverWithTimeout extends BaseTest {
   {
     Slf4jUtils.setLogLevel(ResponseNotifyClientInterceptor.LOG, Level.TRACE);
+    Slf4jUtils.setLogLevel(StreamObserverWithTimeout.LOG, Level.DEBUG);
   }
 
   enum Type {

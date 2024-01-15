@@ -43,7 +43,8 @@ public final class StreamObserverWithTimeout<T> implements StreamObserver<T> {
     final AtomicInteger responseCount = new AtomicInteger();
     final ResourceSemaphore semaphore = outstandingLimit > 0? new ResourceSemaphore(outstandingLimit): null;
     final ResponseNotifyClientInterceptor interceptor = new ResponseNotifyClientInterceptor(r -> {
-      responseCount.getAndIncrement();
+      final int responses = responseCount.getAndIncrement();
+      LOG.debug("{}: receive {}: {}", name, responses, r);
       if (semaphore != null) {
         semaphore.release();
       }
@@ -99,12 +100,15 @@ public final class StreamObserverWithTimeout<T> implements StreamObserver<T> {
     acquire(requestString);
     observer.onNext(request);
     final int id = requestCount.incrementAndGet();
+    LOG.debug("{}: send {}: {}", name, id, requestString);
     scheduler.onTimeout(timeout, () -> handleTimeout(id, requestString),
         LOG, () -> name + ": Timeout check failed for request: " + requestString);
   }
 
   private void handleTimeout(int id, StringSupplier request) {
-    if (id > responseCount.getAsInt()) {
+    final int responses = responseCount.getAsInt();
+    if (id > responses) {
+      LOG.debug("{}: responses received: {} < request id: {}: {}", name, responses, id, request);
       onError(new TimeoutIOException(name + ": Timed out " + timeout + " for sending request " + request));
     }
   }
