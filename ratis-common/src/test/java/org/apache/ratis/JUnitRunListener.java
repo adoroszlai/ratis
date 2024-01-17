@@ -26,6 +26,7 @@ import org.junit.runners.model.TestTimedOutException;
 
 import java.io.PrintStream;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * A {@link RunListener} to dump all threads after a test timeout failure.
@@ -71,6 +72,9 @@ public class JUnitRunListener extends RunListener {
       return null;
     }
     final Throwable throwable = failure.getException();
+    if (throwable.getClass() == TimeoutException.class) { // for timed out future.get and similar
+      return throwable;
+    }
     if (throwable.getClass() != TIMEOUT_EXCEPTION.getClass()) {
       return null;
     }
