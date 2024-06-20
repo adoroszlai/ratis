@@ -131,6 +131,7 @@ public interface ExitUtils {
         log.info(s, throwable);
       } else {
         log.error(s, throwable);
+        throwable.printStackTrace(System.err);
       }
     }
 
