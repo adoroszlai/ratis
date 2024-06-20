@@ -141,6 +141,7 @@ jobs:
           - grpc
           - server
           - misc
+        java: [ 8, 17 ]
       fail-fast: false
     steps:
         - name: Checkout project
@@ -158,7 +159,7 @@ jobs:
           uses: actions/setup-java@v4
           with:
             distribution: 'temurin'
-            java-version: 8
+            java-version: ${{ matrix.java }}
         - name: Run tests
           run: ./dev-support/checks/unit.sh -P${{ matrix.profile }}-tests
         - name: Summary of failures
