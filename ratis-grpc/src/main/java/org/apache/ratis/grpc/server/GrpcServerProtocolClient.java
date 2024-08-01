@@ -77,7 +77,8 @@ public class GrpcServerProtocolClient implements Closeable {
   private ManagedChannel buildChannel(RaftPeer target, int flowControlWindow,
       GrpcTlsConfig tlsConfig) {
     NettyChannelBuilder channelBuilder =
-        NettyChannelBuilder.forTarget(target.getAddress());
+        NettyChannelBuilder.forTarget(target.getAddress())
+            .proxyDetector(any -> null);
 
     if (tlsConfig!= null) {
       SslContextBuilder sslContextBuilder = GrpcSslContexts.forClient();
