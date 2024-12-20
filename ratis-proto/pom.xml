@@ -25,6 +25,7 @@
 
   <properties>
     <maven.javadoc.skip>true</maven.javadoc.skip>
+    <skipTests>true</skipTests> <!-- no testable code in this module -->
     <spotbugs.skip>true</spotbugs.skip>
   </properties>
 

@@ -33,6 +33,7 @@
     <test.cache.data>${project.build.directory}/test-classes</test.cache.data>
     <test.build.classes>${project.build.directory}/test-classes</test.build.classes>
     <license.bundles.dependencies>true</license.bundles.dependencies>
+    <skipTests>true</skipTests> <!-- no testable code in this module -->
   </properties>
 
   <build>

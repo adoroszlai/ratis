@@ -23,6 +23,10 @@
   <artifactId>ratis-shell</artifactId>
   <name>Apache Ratis Shell</name>
 
+  <properties>
+    <skipTests>true</skipTests> <!-- no tests in this module so far -->
+  </properties>
+
   <dependencies>
     <dependency>
       <artifactId>ratis-client</artifactId>

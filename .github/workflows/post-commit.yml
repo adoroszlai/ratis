@@ -143,6 +143,7 @@ jobs:
           - grpc
           - server
           - misc
+          - flaky
       fail-fast: false
     steps:
         - name: Checkout project

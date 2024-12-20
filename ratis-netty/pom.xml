@@ -23,6 +23,10 @@
   <artifactId>ratis-netty</artifactId>
   <name>Apache Ratis Netty Support</name>
 
+  <properties>
+    <skipTests>true</skipTests> <!-- no tests in this module so far -->
+  </properties>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.ratis</groupId>
