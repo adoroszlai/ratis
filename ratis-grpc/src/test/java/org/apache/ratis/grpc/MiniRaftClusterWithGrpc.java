@@ -52,7 +52,7 @@ public class MiniRaftClusterWithGrpc extends MiniRaftCluster.RpcBase {
 
   static {
     // TODO move it to MiniRaftCluster for detecting non-gRPC cases
-    ReferenceCountedLeakDetector.enable(false);
+    ReferenceCountedLeakDetector.enable(true);
   }
 
   public interface FactoryGet extends Factory.Get<MiniRaftClusterWithGrpc> {
