@@ -172,6 +172,7 @@
     <maven-checkstyle-plugin.version>3.3.0</maven-checkstyle-plugin.version>
     <maven-clover2-plugin.version>4.0.6</maven-clover2-plugin.version>
     <maven-pdf-plugin.version>1.6.1</maven-pdf-plugin.version>
+    <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
     <maven-surefire-plugin.version>3.0.0-M4</maven-surefire-plugin.version>
     <wagon-ssh.version>3.5.3</wagon-ssh.version>
     <hadoop-maven-plugins.version>3.4.0</hadoop-maven-plugins.version>
@@ -185,7 +186,6 @@
     <license-maven-plugin.version>2.2.0</license-maven-plugin.version>
 
     <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
-    <copy-rename-maven-plugin.version>1.0</copy-rename-maven-plugin.version>
     <cyclonedx.version>2.8.0</cyclonedx.version>
 
     <spotbugs.version>4.2.1</spotbugs.version>
@@ -472,11 +472,6 @@
           <artifactId>license-maven-plugin</artifactId>
           <version>${license-maven-plugin.version}</version>
         </plugin>
-        <plugin>
-          <groupId>com.coderplus.maven.plugins</groupId>
-          <artifactId>copy-rename-maven-plugin</artifactId>
-          <version>${copy-rename-maven-plugin.version}</version>
-        </plugin>
 
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -493,6 +488,11 @@
               <additionalJOption>-Xdoclint:-missing</additionalJOption>
             </additionalJOptions>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>${maven-shade-plugin.version}</version>
         </plugin>
         <plugin>
           <groupId>com.github.spotbugs</groupId>
