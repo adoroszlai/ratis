@@ -33,6 +33,14 @@
   <url>https://ratis.apache.org/</url>
   <inceptionYear>2017</inceptionYear>
 
+  <repositories>
+    <repository>
+      <id>thirdparty-1.0.11-rc0</id>
+      <name>Apache Ratis Thirdparty 1.0.11 rc0</name>
+      <url>https://repository.apache.org/content/repositories/orgapacheratis-1175</url>
+    </repository>
+  </repositories>
+
   <distributionManagement>
     <repository>
       <id>${distMgmtStagingId}</id>
