@@ -28,6 +28,12 @@ on:
         required: true
 
       # OPTIONAL (ordered alphabetically)
+      java-distro:
+        type: string
+        description: "Java distribution to set up (default: temurin)"
+        default: 'temurin'
+        required: false
+
       java-version:
         type: string
         description: "Java version to set up (default: 17)"
@@ -80,7 +86,6 @@ env:
   MAVEN_ARGS: --batch-mode --show-version
   MAVEN_OPTS: -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
   SCRIPT: ${{ inputs.script }}
-  WITH_COVERAGE: ${{ github.event_name == 'push' }}
 
 jobs:
   check:
@@ -150,7 +155,7 @@ jobs:
         if: ${{ inputs.java-version }}
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: ${{ inputs.java-distro }}
           java-version: ${{ inputs.java-version }}
 
       - name: Execute tests
@@ -159,6 +164,11 @@ jobs:
         env:
           COMMAND: dev-support/checks/${{ inputs.script }}.sh ${{ inputs.script-args }}
           DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+
+      - name: Check results
+        run: |
+          unzip -t ratis-proto/target/ratis-proto-3.3.0-SNAPSHOT.jar
+          unzip -t ratis-proto/target/ratis-proto-3.3.0-SNAPSHOT.jar | grep -q ': annotations/'
 
       - name: Summary of failures
         if: ${{ failure() }}
