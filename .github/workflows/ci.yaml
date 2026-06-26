@@ -51,8 +51,9 @@ jobs:
       fail-fast: false
     with:
       java-distro: ${{ matrix.distro }}
+      java-version: 8
       script: build
-      script-args: -Prelease -am -pl :ratis-proto
+      script-args: -Prelease -am -pl :ratis-proto --no-transfer-progress
       split: ${{ matrix.distro }}
       timeout-minutes: 30
     secrets:
