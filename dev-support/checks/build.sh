@@ -28,4 +28,6 @@ fi
 
 export MAVEN_OPTS="-Xmx4096m"
 ${MVN} ${MAVEN_OPTIONS} clean install "$@"
-exit $?
+rc=$?
+
+unzip -t ratis-proto/target/ratis-proto-3.3.0-SNAPSHOT.jar | grep ': annotations/'

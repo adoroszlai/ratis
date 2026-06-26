@@ -36,131 +36,24 @@ permissions: { }
 jobs:
   build:
     uses: ./.github/workflows/check.yaml
+    strategy:
+      matrix:
+        distro:
+          - adopt
+          - corretto
+          - dragonwell
+          - jetbrains
+          - microsoft
+          - oracle
+          - semeru
+          - temurin
+          - zulu
+      fail-fast: false
     with:
+      java-distro: ${{ matrix.distro }}
       script: build
-      script-args: -Prelease
+      script-args: -Prelease -am -pl :ratis-proto
+      split: ${{ matrix.distro }}
       timeout-minutes: 30
     secrets:
       DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-  compile:
-    needs:
-      - build
-    strategy:
-      matrix:
-        java: [ 8, 11, 17, 21 ]
-      fail-fast: false
-    uses: ./.github/workflows/check.yaml
-    with:
-      java-version: ${{ matrix.java }}
-      needs-source-tarball: true
-      script: compile
-      script-args: -Dmaven.compiler.release=${{ matrix.java }}
-      split: ${{ matrix.java }}
-      timeout-minutes: 30
-    secrets:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-  release:
-    uses: ./.github/workflows/check.yaml
-    with:
-      script: release
-      timeout-minutes: 30
-    secrets:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-  repro:
-    needs:
-      - build
-    uses: ./.github/workflows/check.yaml
-    with:
-      needs-maven-repo: true
-      script: repro
-      script-args: -Prelease
-      timeout-minutes: 30
-    secrets:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-  basic:
-    strategy:
-      matrix:
-        check:
-          - author
-          - checkstyle
-          - findbugs
-          - rat
-      fail-fast: false
-    uses: ./.github/workflows/check.yaml
-    with:
-      script: ${{ matrix.check }}
-      timeout-minutes: 30
-    secrets:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-  unit:
-    strategy:
-      matrix:
-        profile:
-          - grpc
-          - server
-          - misc
-          - flaky
-      fail-fast: false
-    uses: ./.github/workflows/check.yaml
-    with:
-      script: unit
-      script-args: -P${{ matrix.profile }}-tests
-      split: ${{ matrix.profile }}
-      timeout-minutes: 60
-    secrets:
-      DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-
-  coverage:
-    needs:
-      - build
-      - unit
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    if: github.event_name != 'pull_request'
-    steps:
-        - name: Checkout project
-          uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-          with:
-            fetch-depth: 0
-            persist-credentials: false
-        - name: Cache for maven dependencies
-          uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-          with:
-            path: |
-              ~/.m2/repository
-              !~/.m2/repository/org/apache/ratis
-            key: maven-repo-${{ hashFiles('**/pom.xml') }}
-            restore-keys: |
-              maven-repo-
-        - name: Setup java 17
-          uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5.3.0
-          with:
-            distribution: 'temurin'
-            java-version: 17
-        - name: Download artifacts
-          uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-          with:
-            path: target/artifacts
-        - name: Untar binaries
-          run: |
-            mkdir -p ratis-assembly/target
-            tar xzvf target/artifacts/ratis-bin/ratis-assembly-*.tar.gz -C ratis-assembly/target
-        - name: Calculate combined coverage
-          run: ./dev-support/checks/coverage.sh
-        - name: Upload coverage to Sonar
-          if: github.repository == 'apache/ratis'
-          run: ./dev-support/checks/sonar.sh
-          env:
-            SONAR_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        - name: Archive build results
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-          if: always()
-          with:
-            name: ${{ github.job }}
-            path: target/${{ github.job }}
