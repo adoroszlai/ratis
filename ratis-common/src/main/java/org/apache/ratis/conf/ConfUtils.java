@@ -171,6 +171,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static boolean getBoolean(
       BiFunction<String, Boolean, Boolean> booleanGetter,
       String key, boolean defaultValue, Consumer<String> logger, BiConsumer<String, Boolean>... assertions) {
@@ -178,6 +179,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static int getInt(
       BiFunction<String, Integer, Integer> integerGetter,
       String key, int defaultValue, Consumer<String> logger, BiConsumer<String, Integer>... assertions) {
@@ -185,6 +187,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static int getInt(
       BiFunction<String, Integer, Integer> integerGetter,
       String key, int defaultValue, String fallbackKey, int fallbackValue,
@@ -193,6 +196,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static long getLong(
       BiFunction<String, Long, Long> longGetter,
       String key, long defaultValue, Consumer<String> logger, BiConsumer<String, Long>... assertions) {
@@ -200,6 +204,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static double getDouble(
       BiFunction<String, Double, Double> doubleGetter,
       String key, double defaultValue, Consumer<String> logger, BiConsumer<String, Double>... assertions) {
@@ -207,6 +212,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static File getFile(
       BiFunction<String, File, File> fileGetter,
       String key, File defaultValue, Consumer<String> logger, BiConsumer<String, File>... assertions) {
@@ -214,6 +220,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static List<File> getFiles(
       BiFunction<String, List<File>, List<File>> fileGetter,
       String key, List<File> defaultValue, Consumer<String> logger, BiConsumer<String, List<File>>... assertions) {
@@ -222,6 +229,7 @@ public interface ConfUtils {
 
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static SizeInBytes getSizeInBytes(
       BiFunction<String, SizeInBytes, SizeInBytes> getter,
       String key, SizeInBytes defaultValue, Consumer<String> logger, BiConsumer<String, SizeInBytes>... assertions) {
@@ -231,6 +239,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static TimeDuration getTimeDuration(
       BiFunction<String, TimeDuration, TimeDuration> getter,
       String key, TimeDuration defaultValue, Consumer<String> logger, BiConsumer<String, TimeDuration>... assertions) {
@@ -240,6 +249,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static TimeDuration getTimeDuration(
         BiFunction<String, TimeDuration, TimeDuration> getter,
         String key, TimeDuration defaultValue, String fallbackKey, TimeDuration fallbackValue,
@@ -257,6 +267,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static <T> T get(BiFunction<String, T, T> getter,
       String key, T defaultValue, Consumer<String> logger, BiConsumer<String, T>... assertions) {
     final T value = getter.apply(key, defaultValue);
@@ -266,6 +277,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static <T> T get(BiFunction<String, T, T> getter,
       String key, T defaultValue, String fallbackKey, T fallbackValue,
       Consumer<String> logger, BiConsumer<String, T>... assertions) {
@@ -286,6 +298,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setBoolean(
       BiConsumer<String, Boolean> booleanSetter, String key, boolean value,
       BiConsumer<String, Boolean>... assertions) {
@@ -293,6 +306,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setInt(
       BiConsumer<String, Integer> integerSetter, String key, int value,
       BiConsumer<String, Integer>... assertions) {
@@ -300,6 +314,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setLong(
       BiConsumer<String, Long> longSetter, String key, long value,
       BiConsumer<String, Long>... assertions) {
@@ -307,6 +322,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setDouble(
       BiConsumer<String, Double> doubleSetter, String key, double value,
       BiConsumer<String, Double>... assertions) {
@@ -314,6 +330,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setFile(
       BiConsumer<String, File> fileSetter, String key, File value,
       BiConsumer<String, File>... assertions) {
@@ -321,6 +338,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setFiles(
       BiConsumer<String, List<File>> fileSetter, String key, List<File> value,
       BiConsumer<String, List<File>>... assertions) {
@@ -328,6 +346,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setSizeInBytes(
       BiConsumer<String, String> stringSetter, String key, SizeInBytes value,
       BiConsumer<String, Long>... assertions) {
@@ -337,6 +356,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static void setTimeDuration(
       BiConsumer<String, TimeDuration> timeDurationSetter, String key, TimeDuration value,
       BiConsumer<String, TimeDuration>... assertions) {
@@ -349,6 +369,7 @@ public interface ConfUtils {
   }
 
   @SafeVarargs
+  @SuppressWarnings("varargs")
   static <T> void set(
       BiConsumer<String, T> setter, String key, T value,
       BiConsumer<String, T>... assertions) {
